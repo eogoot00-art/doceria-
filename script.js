@@ -75,18 +75,228 @@ function formatarWhatsApp(numero) {
     return numero.replace(/\D/g, '');
 }
 
+// Variável global para armazenar o produto selecionado
+let produtoSelecionado = null;
+
 /**
- * Abre o WhatsApp com mensagem pré-formatada
+ * Abre o modal de compra com informações do produto
  * @param {string} produtoNome - Nome do produto
  * @param {number} produtoPreco - Preço do produto
  */
-function abrirWhatsApp(produtoNome, produtoPreco) {
+function abrirModalCompra(produtoNome, produtoPreco) {
+    produtoSelecionado = {
+        nome: produtoNome,
+        preco: produtoPreco
+    };
+    
+    // Atualiza informações do produto no modal
+    const modalProdutoInfo = document.getElementById('modalProdutoInfo');
+    if (modalProdutoInfo) {
+        modalProdutoInfo.innerHTML = `
+            <strong>${produtoNome}</strong> - R$ ${produtoPreco.toFixed(2).replace('.', ',')}
+        `;
+    }
+    
+    // Limpa o formulário
+    const form = document.getElementById('formCompra');
+    if (form) {
+        form.reset();
+        // Remove mensagens de erro anteriores
+        const mensagens = form.querySelectorAll('.form-message');
+        mensagens.forEach(msg => msg.remove());
+    }
+    
+    // Abre o modal
+    const modal = document.getElementById('modalCompra');
+    if (modal) {
+        modal.classList.add('show');
+        document.body.style.overflow = 'hidden';
+        
+        // Foca no campo CEP
+        setTimeout(() => {
+            const cepInput = document.getElementById('cep');
+            if (cepInput) {
+                cepInput.focus();
+            }
+        }, 300);
+    }
+}
+
+/**
+ * Fecha o modal de compra
+ */
+function fecharModalCompra() {
+    const modal = document.getElementById('modalCompra');
+    if (modal) {
+        modal.classList.remove('show');
+        document.body.style.overflow = '';
+        produtoSelecionado = null;
+    }
+}
+
+/**
+ * Busca informações do CEP via API
+ */
+async function buscarCEP() {
+    const cepInput = document.getElementById('cep');
+    const btnBuscar = document.querySelector('.btn-buscar-cep');
+    const enderecoInput = document.getElementById('endereco');
+    const cidadeInput = document.getElementById('cidade');
+    const estadoInput = document.getElementById('estado');
+    
+    if (!cepInput) return;
+    
+    let cep = cepInput.value.replace(/\D/g, '');
+    
+    if (cep.length !== 8) {
+        mostrarMensagem('CEP inválido. Digite um CEP com 8 dígitos.', 'error');
+        return;
+    }
+    
+    // Adiciona loading ao botão
+    if (btnBuscar) {
+        btnBuscar.classList.add('loading');
+        btnBuscar.disabled = true;
+    }
+    
+    try {
+        // Tenta buscar na API ViaCEP
+        const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+        const data = await response.json();
+        
+        if (data.erro) {
+            throw new Error('CEP não encontrado');
+        }
+        
+        // Preenche os campos automaticamente
+        if (enderecoInput && data.logradouro) {
+            enderecoInput.value = `${data.logradouro}${data.complemento ? ', ' + data.complemento : ''}`;
+        }
+        
+        if (cidadeInput && data.localidade) {
+            cidadeInput.value = data.localidade;
+        }
+        
+        if (estadoInput && data.uf) {
+            estadoInput.value = data.uf.toUpperCase();
+        }
+        
+        mostrarMensagem('Endereço encontrado! Complete com o número e complemento.', 'success');
+        
+    } catch (error) {
+        mostrarMensagem('CEP não encontrado. Por favor, preencha o endereço manualmente.', 'error');
+    } finally {
+        // Remove loading do botão
+        if (btnBuscar) {
+            btnBuscar.classList.remove('loading');
+            btnBuscar.disabled = false;
+        }
+    }
+}
+
+/**
+ * Mostra mensagem de erro ou sucesso
+ */
+function mostrarMensagem(texto, tipo) {
+    const form = document.getElementById('formCompra');
+    if (!form) return;
+    
+    // Remove mensagens anteriores
+    const mensagensAntigas = form.querySelectorAll('.form-message');
+    mensagensAntigas.forEach(msg => msg.remove());
+    
+    // Cria nova mensagem
+    const mensagem = document.createElement('div');
+    mensagem.className = `form-message ${tipo}`;
+    mensagem.textContent = texto;
+    
+    // Insere após o primeiro campo
+    const primeiroCampo = form.querySelector('.form-group');
+    if (primeiroCampo) {
+        primeiroCampo.parentNode.insertBefore(mensagem, primeiroCampo.nextSibling);
+    }
+    
+    // Remove após 5 segundos
+    setTimeout(() => {
+        mensagem.remove();
+    }, 5000);
+}
+
+/**
+ * Formata CEP enquanto o usuário digita
+ */
+function formatarCEP(input) {
+    let value = input.value.replace(/\D/g, '');
+    
+    if (value.length > 5) {
+        value = value.substring(0, 5) + '-' + value.substring(5, 8);
+    }
+    
+    input.value = value;
+}
+
+/**
+ * Envia pedido para WhatsApp com todas as informações
+ */
+function enviarParaWhatsApp(event) {
+    event.preventDefault();
+    
+    if (!produtoSelecionado) {
+        mostrarMensagem('Erro: Produto não selecionado.', 'error');
+        return;
+    }
+    
+    const form = document.getElementById('formCompra');
+    if (!form) return;
+    
+    // Valida campos obrigatórios
+    const cep = document.getElementById('cep').value.trim();
+    const endereco = document.getElementById('endereco').value.trim();
+    const cidade = document.getElementById('cidade').value.trim();
+    const estado = document.getElementById('estado').value.trim();
+    const observacoes = document.getElementById('observacoes').value.trim();
+    
+    if (!cep || !endereco || !cidade || !estado) {
+        mostrarMensagem('Por favor, preencha todos os campos obrigatórios.', 'error');
+        return;
+    }
+    
+    // Valida CEP
+    const cepLimpo = cep.replace(/\D/g, '');
+    if (cepLimpo.length !== 8) {
+        mostrarMensagem('CEP inválido. Digite um CEP com 8 dígitos.', 'error');
+        return;
+    }
+    
+    // Monta mensagem para WhatsApp
+    const mensagem = `🌺 *PEDIDO - Flor de Chocolate*
+
+*Produto:*
+${produtoSelecionado.nome}
+*Preço:* R$ ${produtoSelecionado.preco.toFixed(2).replace('.', ',')}
+
+*Endereço de Entrega:*
+📍 ${endereco}
+${cidade} - ${estado}
+CEP: ${cep}
+
+${observacoes ? `*Observações:*
+${observacoes}
+
+` : ''}Gostaria de confirmar este pedido! 🍫🌺`;
+
+    // Formata número do WhatsApp
     const whatsappNumero = formatarWhatsApp('+55 12 99221-6807');
-    const mensagem = encodeURIComponent(
-        `Olá! Gostaria de encomendar: ${produtoNome} - R$ ${produtoPreco.toFixed(2).replace('.', ',')}`
-    );
-    const linkWhatsApp = `https://wa.me/${whatsappNumero}?text=${mensagem}`;
+    const mensagemEncoded = encodeURIComponent(mensagem);
+    const linkWhatsApp = `https://wa.me/${whatsappNumero}?text=${mensagemEncoded}`;
+    
+    // Abre WhatsApp
     window.open(linkWhatsApp, '_blank');
+    
+    // Fecha o modal após um pequeno delay
+    setTimeout(() => {
+        fecharModalCompra();
+    }, 500);
 }
 
 // ============================================
@@ -134,7 +344,7 @@ function criarCardProduto(produto) {
             <h3 class="produto-nome">${produto.nome}</h3>
             <p class="produto-descricao">${produto.descricao}</p>
             <div class="produto-preco">${precoFormatado}</div>
-            <button class="btn-comprar" onclick="abrirWhatsApp('${produto.nome}', ${produto.preco})">
+            <button class="btn-comprar" onclick="abrirModalCompra('${produto.nome}', ${produto.preco})">
                 Comprar Agora
             </button>
         </div>
@@ -473,6 +683,45 @@ document.addEventListener('DOMContentLoaded', () => {
     // Configura botões de WhatsApp
     configurarBotoesWhatsApp();
     
+    // Configura formulário de compra
+    const formCompra = document.getElementById('formCompra');
+    if (formCompra) {
+        formCompra.addEventListener('submit', enviarParaWhatsApp);
+    }
+    
+    // Formata CEP enquanto digita
+    const cepInput = document.getElementById('cep');
+    if (cepInput) {
+        cepInput.addEventListener('input', function() {
+            formatarCEP(this);
+        });
+        
+        // Busca CEP ao pressionar Enter
+        cepInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                buscarCEP();
+            }
+        });
+    }
+    
+    // Fecha modal ao clicar fora
+    const modalCompra = document.getElementById('modalCompra');
+    if (modalCompra) {
+        modalCompra.addEventListener('click', function(e) {
+            if (e.target === modalCompra) {
+                fecharModalCompra();
+            }
+        });
+    }
+    
+    // Fecha modal com ESC
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            fecharModalCompra();
+        }
+    });
+    
     // Exibe modal de boas-vindas
     setTimeout(() => {
         criarModalBoasVindas();
@@ -487,5 +736,7 @@ window.adicionarProduto = adicionarProduto;
 window.removerProduto = removerProduto;
 window.limparProdutos = limparProdutos;
 window.produtos = produtos;
-window.abrirWhatsApp = abrirWhatsApp;
+window.abrirModalCompra = abrirModalCompra;
+window.fecharModalCompra = fecharModalCompra;
+window.buscarCEP = buscarCEP;
 window.fecharModalBoasVindas = fecharModalBoasVindas;
