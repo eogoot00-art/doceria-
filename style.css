@@ -371,19 +371,6 @@ body {
     position: relative;
 }
 
-.hero-title::before {
-    content: attr(data-text);
-    position: absolute;
-    left: 0;
-    top: 0;
-    z-index: -1;
-    background: linear-gradient(135deg, #FFB3BA 0%, #FFD6D9 50%, #FFE4E6 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    opacity: 0.3;
-    filter: blur(2px);
-}
 
 .hero-subtitle {
     font-size: 1.4rem;
@@ -479,8 +466,8 @@ body {
     top: 50%;
     right: 10%;
     animation-delay: 2s;
-    color: #8B4513;
-    filter: drop-shadow(0 4px 8px rgba(139, 69, 19, 0.4)) drop-shadow(0 0 10px rgba(255, 215, 0, 0.3));
+    color: #FFFFFF;
+    filter: drop-shadow(0 4px 8px rgba(255, 255, 255, 0.6)) drop-shadow(0 0 15px rgba(255, 255, 255, 0.5));
 }
 
 .element-3 {
@@ -495,8 +482,8 @@ body {
     top: 30%;
     right: 20%;
     animation-delay: 6s;
-    color: #8B4513;
-    filter: drop-shadow(0 4px 8px rgba(139, 69, 19, 0.4)) drop-shadow(0 0 10px rgba(255, 215, 0, 0.3));
+    color: #FFFFFF;
+    filter: drop-shadow(0 4px 8px rgba(255, 255, 255, 0.6)) drop-shadow(0 0 15px rgba(255, 255, 255, 0.5));
 }
 
 .element-5 {
