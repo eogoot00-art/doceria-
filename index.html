@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flor de Chocolate - Sabores que Encantam</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- ============================================
+         CABEÇALHO (HEADER)
+         Logo, nome da doceria e menu de navegação
+         ============================================ -->
+    <header class="header">
+        <div class="container">
+            <div class="logo">
+                <div class="logo-icon">🍰</div>
+                <div class="logo-text">
+                    <h1>Flor de Chocolate</h1>
+                    <p class="tagline">Sabores que Encantam</p>
+                </div>
+            </div>
+            <nav class="nav">
+                <a href="#inicio">Início</a>
+                <a href="#sobre">Sobre</a>
+                <a href="#doces">Doces</a>
+                <a href="#promocoes">Promoções</a>
+                <a href="#contato">Contato</a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- ============================================
+         SEÇÃO INICIAL (HERO SECTION)
+         Frase de impacto e chamada para ação
+         ============================================ -->
+    <section id="inicio" class="hero">
+        <div class="hero-overlay"></div>
+        <div class="hero-content">
+            <h2 class="hero-title">Cada Morder é um Abraço Doce</h2>
+            <p class="hero-subtitle">Bem-vindo ao nosso mundo de sabores artesanais, onde cada doce é preparado com ingredientes selecionados e muito carinho. Transformamos momentos simples em experiências memoráveis que aquecem o coração e adoçam a alma.</p>
+            <a href="#doces" class="btn-primary">Descubra Nossos Sabores</a>
+        </div>
+        <div class="floating-elements">
+            <div class="floating-element element-1">✨</div>
+            <div class="floating-element element-2">💫</div>
+            <div class="floating-element element-3">⭐</div>
+            <div class="floating-element element-4">🌟</div>
+        </div>
+    </section>
+
+    <!-- ============================================
+         SEÇÃO "SOBRE NÓS"
+         História da doceria, qualidade e carinho
+         ============================================ -->
+    <section id="sobre" class="sobre">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Sobre Nós</h2>
+                <div class="title-decoration"></div>
+            </div>
+            <div class="sobre-content">
+                <div class="sobre-text">
+                    <p>Bem-vindo à <strong>Flor de Chocolate</strong>, onde cada doce conta uma história de paixão, dedicação e muito amor pela confeitaria artesanal. Nossa jornada começou com um sonho simples: transformar ingredientes selecionados em momentos doces que ficam guardados na memória para sempre.</p>
+                    <p>Aqui, acreditamos que fazer doces vai muito além de misturar ingredientes. É uma forma de <strong>expressar carinho</strong>, de celebrar a vida e de criar conexões especiais. Cada brigadeiro, cada bolo, cada doce que sai das nossas mãos é preparado com atenção aos mínimos detalhes, utilizando apenas <strong>ingredientes de primeira qualidade</strong> e técnicas que respeitam a tradição artesanal.</p>
+                    <p>Nossa paixão pela confeitaria nos move a buscar sempre o melhor. Trabalhamos com <strong>chocolates premium</strong>, frutas frescas selecionadas e receitas que foram aperfeiçoadas ao longo do tempo. Cada produto é uma obra de arte única, feita especialmente para você.</p>
+                    <p>Estamos aqui para tornar seus momentos ainda mais especiais. Seja um aniversário, uma celebração ou simplesmente um dia em que você merece um mimo, nossos doces estão prontos para adoçar sua vida. <strong>Venha nos conhecer e descubra o sabor do verdadeiro carinho artesanal!</strong></p>
+                </div>
+                <div class="sobre-features">
+                    <div class="feature">
+                        <div class="feature-icon">🎂</div>
+                        <h3>Artesanal</h3>
+                        <p>Feito à mão com muito carinho e atenção aos detalhes</p>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon">⭐</div>
+                        <h3>Qualidade</h3>
+                        <p>Ingredientes selecionados e de procedência confiável</p>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon">💝</div>
+                        <h3>Especial</h3>
+                        <p>Para transformar momentos simples em experiências únicas</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================
+         SEÇÃO "NOSSOS DOCES"
+         Cards de produtos com imagem, nome e descrição
+         ============================================ -->
+    <section id="doces" class="produtos">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Nossos Doces</h2>
+                <div class="title-decoration"></div>
+                <p class="section-subtitle">Descubra nossos sabores únicos e deixe-se envolver pela doçura artesanal que transforma qualquer momento em algo especial</p>
+            </div>
+            <div class="produtos-grid" id="produtosGrid">
+                <!-- Produtos serão adicionados dinamicamente via JavaScript -->
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================
+         SEÇÃO DE PROMOÇÕES OU DESTAQUES
+         Doces em promoção ou mais vendidos
+         ============================================ -->
+    <section id="promocoes" class="promocoes">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Promoções e Destaques</h2>
+                <div class="title-decoration"></div>
+                <p class="section-subtitle">Os queridinhos que conquistaram o coração dos nossos clientes e se tornaram verdadeiros sucessos</p>
+            </div>
+            <div class="promocoes-grid">
+                <div class="promocao-card destaque">
+                    <div class="promocao-badge">Mais Vendido</div>
+                    <div class="promocao-imagem">
+                        <span class="promocao-emoji">🍫</span>
+                    </div>
+                    <div class="promocao-info">
+                        <h3 class="promocao-nome">Brigadeiro Dourado</h3>
+                        <p class="promocao-descricao">O verdadeiro campeão de vendas! Brigadeiros irresistíveis feitos com chocolate belga premium e uma cobertura especial que derrete na boca. Cada mordida é uma explosão de sabor que você não vai conseguir esquecer!</p>
+                        <div class="promocao-preco">
+                            <span class="preco-original">R$ 3,50</span>
+                            <span class="preco-promocao">R$ 3,00</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="promocao-card destaque">
+                    <div class="promocao-badge">Promoção</div>
+                    <div class="promocao-imagem">
+                        <span class="promocao-emoji">🎂</span>
+                    </div>
+                    <div class="promocao-info">
+                        <h3 class="promocao-nome">Bolo da Vovó</h3>
+                        <p class="promocao-descricao">O sabor caseiro que aquece a alma! Feito com receita tradicional e ingredientes selecionados. Encomende com antecedência e ganhe 10% de desconto - porque momentos especiais merecem um bolo especial!</p>
+                        <div class="promocao-preco">
+                            <span class="preco-original">R$ 75,00</span>
+                            <span class="preco-promocao">R$ 67,50</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="promocao-card destaque">
+                    <div class="promocao-badge">Novidade</div>
+                    <div class="promocao-imagem">
+                        <span class="promocao-emoji">🧁</span>
+                    </div>
+                    <div class="promocao-info">
+                        <h3 class="promocao-nome">Cupcake Surpresa</h3>
+                        <p class="promocao-descricao">Pequenos bolos recheados com surpresas deliciosas! Massa fofinha, recheio cremoso e cobertura especial. Pacote com 6 unidades com desconto especial - perfeito para compartilhar ou guardar só para você!</p>
+                        <div class="promocao-preco">
+                            <span class="preco-original">R$ 45,00</span>
+                            <span class="preco-promocao">R$ 40,00</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================
+         SEÇÃO DE CONTATO
+         Botões de WhatsApp e Instagram
+         ============================================ -->
+    <section id="contato" class="contato">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Entre em Contato</h2>
+                <div class="title-decoration"></div>
+            </div>
+            <div class="contato-content">
+                <p class="contato-text">Estamos aqui para tornar seus momentos ainda mais doces e especiais!</p>
+                <p class="contato-text">Tem alguma dúvida, quer fazer um pedido personalizado ou simplesmente bater um papo sobre doces? Adoraríamos conversar com você!</p>
+                <p class="contato-text-destaque">Entre em contato agora mesmo e descubra como podemos adoçar sua vida!</p>
+                <div class="contato-buttons">
+                    <a href="https://wa.me/5512992216807" target="_blank" class="btn-whatsapp">
+                        <span class="whatsapp-icon">💬</span>
+                        Falar no WhatsApp
+                    </a>
+                    <a href="https://www.instagram.com/flor_de_chocolate2025?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==" target="_blank" class="btn-instagram">
+                        <span class="instagram-icon">📷</span>
+                        Seguir no Instagram
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================
+         RODAPÉ (FOOTER)
+         Redes sociais e direitos autorais
+         ============================================ -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>🌺 Flor de Chocolate</h3>
+                    <p>Sabores que encantam e momentos que ficam na memória. Doces artesanais feitos com amor e ingredientes selecionados.</p>
+                </div>
+                <div class="footer-section">
+                    <h4>Navegação</h4>
+                    <ul class="footer-links">
+                        <li><a href="#inicio">Início</a></li>
+                        <li><a href="#sobre">Sobre</a></li>
+                        <li><a href="#doces">Doces</a></li>
+                        <li><a href="#promocoes">Promoções</a></li>
+                        <li><a href="#contato">Contato</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>Contato</h4>
+                    <p>WhatsApp: +55 12 99221-6807</p>
+                    <p>Email: contato@docesdourados.com.br</p>
+                </div>
+                <div class="footer-section">
+                    <h4>Redes Sociais</h4>
+                    <div class="social-links">
+                        <a href="https://wa.me/5512992216807" target="_blank" class="social-link" aria-label="WhatsApp">
+                            <span>💬</span> WhatsApp
+                        </a>
+                        <a href="https://www.instagram.com/flor_de_chocolate2025?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==" target="_blank" class="social-link" aria-label="Instagram">
+                            <span>📷</span> Instagram
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2024 Flor de Chocolate. Todos os direitos reservados.</p>
+                <p class="footer-credits">Feito com ❤️ para adoçar sua vida</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
