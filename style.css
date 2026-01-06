@@ -112,12 +112,26 @@ body {
     box-shadow: 0 2px 15px var(--shadow-chocolate);
 }
 
+.header.compact {
+    padding: 12px 0;
+}
+
+.header.compact .container {
+    justify-content: center;
+    gap: 30px;
+}
+
+.header.compact .nav {
+    display: none !important;
+}
+
 .header .container {
     display: flex;
     justify-content: space-between;
     align-items: center;
     flex-wrap: wrap;
     gap: 20px;
+    transition: all var(--transition-normal);
 }
 
 /* Logo */
@@ -170,6 +184,19 @@ body {
     letter-spacing: 1px;
     font-weight: 700;
     position: relative;
+    transition: font-size var(--transition-normal);
+}
+
+.header.compact .logo-text h1 {
+    font-size: 1.8rem;
+}
+
+.header.compact .logo-icon {
+    font-size: 2.5rem;
+}
+
+.header.compact .tagline {
+    font-size: 0.8rem;
 }
 
 .tagline {
@@ -186,6 +213,11 @@ body {
     display: flex;
     align-items: center;
     margin: 0 20px;
+    transition: all var(--transition-normal);
+}
+
+.header.compact .header-social {
+    margin: 0;
 }
 
 .header-instagram {
@@ -241,6 +273,15 @@ body {
     display: flex;
     gap: 35px;
     flex-wrap: wrap;
+    transition: opacity var(--transition-normal), transform var(--transition-normal);
+}
+
+.header.compact .nav {
+    opacity: 0;
+    transform: translateY(-10px);
+    pointer-events: none;
+    height: 0;
+    overflow: hidden;
 }
 
 .nav a {
@@ -1814,9 +1855,23 @@ section {
         gap: 20px;
     }
     
+    .header.compact .container {
+        flex-direction: row;
+        justify-content: center;
+        gap: 15px;
+    }
+    
     .logo h1 {
         font-size: 1.8rem;
         text-align: center;
+    }
+    
+    .header.compact .logo h1 {
+        font-size: 1.5rem;
+    }
+    
+    .header.compact .logo-icon {
+        font-size: 2rem;
     }
     
     .header-social {
@@ -1824,12 +1879,30 @@ section {
         order: 2;
     }
     
+    .header.compact .header-social {
+        margin: 0;
+        order: 0;
+    }
+    
     .header-instagram {
         padding: 8px 15px;
     }
     
+    .header.compact .header-instagram {
+        padding: 6px 12px;
+    }
+    
+    .header.compact .instagram-image {
+        width: 40px;
+        height: 40px;
+    }
+    
     .instagram-text {
         font-size: 0.8rem;
+    }
+    
+    .header.compact .instagram-text {
+        font-size: 0.75rem;
     }
     
     .nav {

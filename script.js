@@ -548,9 +548,11 @@ function configurarAnimacoesScroll() {
 
 /**
  * Adiciona classe ao header quando o usuário rola a página
+ * Esconde o menu de navegação e mantém apenas logo e Instagram
  */
 function configurarHeaderScroll() {
     const header = document.querySelector('.header');
+    const nav = document.querySelector('.nav');
     let lastScroll = 0;
     
     window.addEventListener('scroll', () => {
@@ -558,8 +560,16 @@ function configurarHeaderScroll() {
         
         if (currentScroll > 100) {
             header.classList.add('scrolled');
+            header.classList.add('compact');
+            if (nav) {
+                nav.style.display = 'none';
+            }
         } else {
             header.classList.remove('scrolled');
+            header.classList.remove('compact');
+            if (nav) {
+                nav.style.display = 'flex';
+            }
         }
         
         lastScroll = currentScroll;
