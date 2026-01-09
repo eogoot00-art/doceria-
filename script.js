@@ -75,8 +75,324 @@ function formatarWhatsApp(numero) {
     return numero.replace(/\D/g, '');
 }
 
+/**
+ * Escapa caracteres especiais para uso em HTML
+ * @param {string} texto - Texto a ser escapado
+ * @returns {string} - Texto escapado
+ */
+function escaparHTML(texto) {
+    const div = document.createElement('div');
+    div.textContent = texto;
+    return div.innerHTML;
+}
+
 // Variável global para armazenar o produto selecionado
 let produtoSelecionado = null;
+
+// ============================================
+// SISTEMA DE CARRINHO DE COMPRAS
+// ============================================
+
+// Array para armazenar produtos no carrinho
+let carrinho = [];
+
+/**
+ * Adiciona um produto ao carrinho
+ * @param {string} produtoNome - Nome do produto
+ * @param {number} produtoPreco - Preço do produto
+ */
+function adicionarAoCarrinho(produtoNome, produtoPreco) {
+    // Verifica se o produto já está no carrinho
+    const produtoExistente = carrinho.find(item => item.nome === produtoNome);
+    
+    if (produtoExistente) {
+        // Se já existe, aumenta a quantidade
+        produtoExistente.quantidade += 1;
+    } else {
+        // Se não existe, adiciona novo item
+        carrinho.push({
+            nome: produtoNome,
+            preco: produtoPreco,
+            quantidade: 1
+        });
+    }
+    
+    // Atualiza o contador do carrinho
+    atualizarContadorCarrinho();
+    
+    // Mostra mensagem de confirmação
+    mostrarMensagemCarrinho(`${produtoNome} adicionado ao carrinho! 🛒`);
+    
+    // Salva no localStorage
+    salvarCarrinho();
+}
+
+/**
+ * Remove um produto do carrinho
+ * @param {string} produtoNome - Nome do produto a ser removido
+ */
+function removerDoCarrinho(produtoNome) {
+    carrinho = carrinho.filter(item => item.nome !== produtoNome);
+    atualizarContadorCarrinho();
+    atualizarModalCarrinho();
+    salvarCarrinho();
+}
+
+/**
+ * Atualiza a quantidade de um produto no carrinho
+ * @param {string} produtoNome - Nome do produto
+ * @param {number} quantidade - Nova quantidade
+ */
+function atualizarQuantidadeCarrinho(produtoNome, quantidade) {
+    const item = carrinho.find(item => item.nome === produtoNome);
+    if (item) {
+        if (quantidade <= 0) {
+            removerDoCarrinho(produtoNome);
+        } else {
+            item.quantidade = quantidade;
+            atualizarModalCarrinho();
+            salvarCarrinho();
+        }
+    }
+}
+
+/**
+ * Atualiza o contador de itens no ícone do carrinho
+ */
+function atualizarContadorCarrinho() {
+    const contador = document.getElementById('carrinhoContador');
+    const totalItens = carrinho.reduce((total, item) => total + item.quantidade, 0);
+    
+    if (contador) {
+        if (totalItens > 0) {
+            contador.textContent = totalItens;
+            contador.style.display = 'flex';
+        } else {
+            contador.style.display = 'none';
+        }
+    }
+}
+
+/**
+ * Calcula o total do carrinho
+ * @returns {number} - Valor total do carrinho
+ */
+function calcularTotalCarrinho() {
+    return carrinho.reduce((total, item) => total + (item.preco * item.quantidade), 0);
+}
+
+/**
+ * Abre o modal do carrinho
+ */
+function abrirModalCarrinho() {
+    const modal = document.getElementById('modalCarrinho');
+    if (modal) {
+        atualizarModalCarrinho();
+        modal.classList.add('show');
+        document.body.style.overflow = 'hidden';
+    }
+}
+
+/**
+ * Fecha o modal do carrinho
+ */
+function fecharModalCarrinho() {
+    const modal = document.getElementById('modalCarrinho');
+    if (modal) {
+        modal.classList.remove('show');
+        document.body.style.overflow = '';
+    }
+}
+
+/**
+ * Atualiza o conteúdo do modal do carrinho
+ */
+function atualizarModalCarrinho() {
+    const carrinhoItens = document.getElementById('carrinhoItens');
+    const carrinhoTotal = document.getElementById('carrinhoTotal');
+    const btnFinalizarCarrinho = document.getElementById('btnFinalizarCarrinho');
+    
+    if (!carrinhoItens) return;
+    
+    if (carrinho.length === 0) {
+        carrinhoItens.innerHTML = `
+            <div class="carrinho-vazio">
+                <span class="carrinho-emoji">🛒</span>
+                <p>Seu carrinho está vazio</p>
+                <p class="carrinho-vazio-texto">Adicione produtos deliciosos ao seu carrinho!</p>
+            </div>
+        `;
+        if (carrinhoTotal) carrinhoTotal.textContent = 'R$ 0,00';
+        if (btnFinalizarCarrinho) btnFinalizarCarrinho.disabled = true;
+        return;
+    }
+    
+    // Renderiza os itens do carrinho
+    carrinhoItens.innerHTML = carrinho.map(item => {
+        const subtotal = (item.preco * item.quantidade).toFixed(2).replace('.', ',');
+        const nomeEscapado = escaparHTML(item.nome).replace(/'/g, "\\'");
+        return `
+            <div class="carrinho-item">
+                <div class="carrinho-item-info">
+                    <h4 class="carrinho-item-nome">${escaparHTML(item.nome)}</h4>
+                    <p class="carrinho-item-preco">R$ ${item.preco.toFixed(2).replace('.', ',')} cada</p>
+                </div>
+                <div class="carrinho-item-controles">
+                    <button class="btn-quantidade" onclick="atualizarQuantidadeCarrinho('${nomeEscapado}', ${item.quantidade - 1})">-</button>
+                    <span class="carrinho-item-quantidade">${item.quantidade}</span>
+                    <button class="btn-quantidade" onclick="atualizarQuantidadeCarrinho('${nomeEscapado}', ${item.quantidade + 1})">+</button>
+                </div>
+                <div class="carrinho-item-subtotal">
+                    <strong>R$ ${subtotal}</strong>
+                </div>
+                <button class="btn-remover-item" onclick="removerDoCarrinho('${nomeEscapado}')" title="Remover">
+                    🗑️
+                </button>
+            </div>
+        `;
+    }).join('');
+    
+    // Atualiza o total
+    const total = calcularTotalCarrinho();
+    if (carrinhoTotal) {
+        carrinhoTotal.textContent = `R$ ${total.toFixed(2).replace('.', ',')}`;
+    }
+    
+    if (btnFinalizarCarrinho) {
+        btnFinalizarCarrinho.disabled = false;
+    }
+}
+
+/**
+ * Mostra mensagem de confirmação ao adicionar ao carrinho
+ */
+function mostrarMensagemCarrinho(mensagem) {
+    // Remove mensagem anterior se existir
+    const mensagemAnterior = document.querySelector('.mensagem-carrinho');
+    if (mensagemAnterior) {
+        mensagemAnterior.remove();
+    }
+    
+    // Cria nova mensagem
+    const mensagemEl = document.createElement('div');
+    mensagemEl.className = 'mensagem-carrinho';
+    mensagemEl.textContent = mensagem;
+    document.body.appendChild(mensagemEl);
+    
+    // Mostra a mensagem
+    setTimeout(() => {
+        mensagemEl.classList.add('show');
+    }, 10);
+    
+    // Remove após 3 segundos
+    setTimeout(() => {
+        mensagemEl.classList.remove('show');
+        setTimeout(() => {
+            mensagemEl.remove();
+        }, 300);
+    }, 3000);
+}
+
+/**
+ * Salva o carrinho no localStorage
+ */
+function salvarCarrinho() {
+    localStorage.setItem('carrinhoFlorChocolate', JSON.stringify(carrinho));
+}
+
+/**
+ * Carrega o carrinho do localStorage
+ */
+function carregarCarrinho() {
+    const carrinhoSalvo = localStorage.getItem('carrinhoFlorChocolate');
+    if (carrinhoSalvo) {
+        try {
+            carrinho = JSON.parse(carrinhoSalvo);
+            atualizarContadorCarrinho();
+        } catch (e) {
+            console.error('Erro ao carregar carrinho:', e);
+            carrinho = [];
+        }
+    }
+}
+
+/**
+ * Limpa o carrinho
+ */
+function limparCarrinho() {
+    carrinho = [];
+    atualizarContadorCarrinho();
+    atualizarModalCarrinho();
+    salvarCarrinho();
+}
+
+/**
+ * Finaliza a compra do carrinho
+ */
+function finalizarCompraCarrinho() {
+    if (carrinho.length === 0) {
+        mostrarMensagem('Carrinho vazio!', 'error');
+        return;
+    }
+    
+    // Fecha o modal do carrinho
+    fecharModalCarrinho();
+    
+    // Abre o modal de compra com os produtos do carrinho
+    abrirModalCompraCarrinho();
+}
+
+/**
+ * Abre o modal de compra para o carrinho
+ */
+function abrirModalCompraCarrinho() {
+    // Atualiza informações do carrinho no modal
+    const modalProdutoInfo = document.getElementById('modalProdutoInfo');
+    if (modalProdutoInfo) {
+        const produtosTexto = carrinho.map(item => 
+            `${item.nome} (${item.quantidade}x) - R$ ${(item.preco * item.quantidade).toFixed(2).replace('.', ',')}`
+        ).join('\n');
+        
+        modalProdutoInfo.innerHTML = `
+            <strong>Carrinho de Compras</strong><br>
+            <div style="margin-top: 10px; text-align: left; font-size: 0.95rem;">
+                ${produtosTexto.split('\n').map(p => `<div>${p}</div>`).join('')}
+            </div>
+            <div style="margin-top: 10px; font-size: 1.1rem; font-weight: 700; color: var(--chocolate-dark);">
+                Total: R$ ${calcularTotalCarrinho().toFixed(2).replace('.', ',')}
+            </div>
+        `;
+    }
+    
+    // Marca que é uma compra do carrinho
+    produtoSelecionado = {
+        nome: 'Carrinho',
+        preco: calcularTotalCarrinho(),
+        isCarrinho: true
+    };
+    
+    // Limpa o formulário
+    const form = document.getElementById('formCompra');
+    if (form) {
+        form.reset();
+        const mensagens = form.querySelectorAll('.form-message');
+        mensagens.forEach(msg => msg.remove());
+    }
+    
+    // Abre o modal
+    const modal = document.getElementById('modalCompra');
+    if (modal) {
+        modal.classList.add('show');
+        document.body.style.overflow = 'hidden';
+        
+        setTimeout(() => {
+            const cepInput = document.getElementById('cep');
+            if (cepInput) {
+                cepInput.focus();
+            }
+        }, 300);
+    }
+}
 
 /**
  * Abre o modal de compra com informações do produto
@@ -269,21 +585,33 @@ function enviarParaWhatsApp(event) {
     }
     
     // Monta mensagem para WhatsApp
-    const mensagem = `🌺 *PEDIDO - Flor de Chocolate*
-
-*Produto:*
-${produtoSelecionado.nome}
-*Preço:* R$ ${produtoSelecionado.preco.toFixed(2).replace('.', ',')}
-
-*Endereço de Entrega:*
-📍 ${endereco}
-${cidade} - ${estado}
-CEP: ${cep}
-
-${observacoes ? `*Observações:*
-${observacoes}
-
-` : ''}Gostaria de confirmar este pedido! 🍫🌺`;
+    let mensagem = `🌺 *PEDIDO - Flor de Chocolate*\n\n`;
+    
+    // Se for compra do carrinho, lista todos os produtos
+    if (produtoSelecionado.isCarrinho) {
+        mensagem += `*Produtos:*\n`;
+        carrinho.forEach((item, index) => {
+            const subtotal = (item.preco * item.quantidade).toFixed(2).replace('.', ',');
+            mensagem += `${index + 1}. ${item.nome} (${item.quantidade}x)\n`;
+            mensagem += `   R$ ${item.preco.toFixed(2).replace('.', ',')} cada = R$ ${subtotal}\n\n`;
+        });
+        mensagem += `*Total:* R$ ${produtoSelecionado.preco.toFixed(2).replace('.', ',')}\n\n`;
+    } else {
+        // Compra de produto único
+        mensagem += `*Produto:*\n${produtoSelecionado.nome}\n`;
+        mensagem += `*Preço:* R$ ${produtoSelecionado.preco.toFixed(2).replace('.', ',')}\n\n`;
+    }
+    
+    mensagem += `*Endereço de Entrega:*\n`;
+    mensagem += `📍 ${endereco}\n`;
+    mensagem += `${cidade} - ${estado}\n`;
+    mensagem += `CEP: ${cep}\n\n`;
+    
+    if (observacoes) {
+        mensagem += `*Observações:*\n${observacoes}\n\n`;
+    }
+    
+    mensagem += `Gostaria de confirmar este pedido! 🍫🌺`;
 
     // Formata número do WhatsApp
     const whatsappNumero = formatarWhatsApp('+55 12 99221-6807');
@@ -292,6 +620,11 @@ ${observacoes}
     
     // Abre WhatsApp
     window.open(linkWhatsApp, '_blank');
+    
+    // Limpa o carrinho se foi compra do carrinho
+    if (produtoSelecionado.isCarrinho) {
+        limparCarrinho();
+    }
     
     // Fecha o modal após um pequeno delay
     setTimeout(() => {
@@ -334,6 +667,10 @@ function criarCardProduto(produto) {
     // Formata preço para exibição brasileira
     const precoFormatado = produto.preco.toFixed(2).replace('.', ',');
     
+    // Escapa o nome do produto para uso seguro em HTML
+    const nomeEscapado = escaparHTML(produto.nome).replace(/'/g, "\\'");
+    const descricaoEscapada = escaparHTML(produto.descricao);
+    
     // Monta o HTML completo do card
     card.innerHTML = `
         <div class="produto-imagem">
@@ -344,9 +681,14 @@ function criarCardProduto(produto) {
             <h3 class="produto-nome">${produto.nome}</h3>
             <p class="produto-descricao">${produto.descricao}</p>
             <div class="produto-preco">${precoFormatado}</div>
-            <button class="btn-comprar" onclick="abrirModalCompra('${produto.nome}', ${produto.preco})">
-                Comprar Agora
-            </button>
+            <div class="produto-botoes">
+                <button class="btn-comprar" onclick="abrirModalCompra('${nomeEscapado}', ${produto.preco})">
+                    Comprar Agora
+                </button>
+                <button class="btn-carrinho" onclick="adicionarAoCarrinho('${nomeEscapado}', ${produto.preco})">
+                    🛒 Adicionar ao Carrinho
+                </button>
+            </div>
         </div>
     `;
     
@@ -679,6 +1021,9 @@ function configurarBotoesWhatsApp() {
  * Inicializa produtos e configura animações
  */
 document.addEventListener('DOMContentLoaded', () => {
+    // Carrega o carrinho do localStorage
+    carregarCarrinho();
+    
     // Renderiza os produtos
     renderizarProdutos();
     
@@ -725,10 +1070,21 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    // Fecha modal com ESC
+    // Fecha modal do carrinho ao clicar fora
+    const modalCarrinho = document.getElementById('modalCarrinho');
+    if (modalCarrinho) {
+        modalCarrinho.addEventListener('click', function(e) {
+            if (e.target === modalCarrinho) {
+                fecharModalCarrinho();
+            }
+        });
+    }
+    
+    // Fecha modais com ESC
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') {
             fecharModalCompra();
+            fecharModalCarrinho();
         }
     });
     
@@ -750,3 +1106,11 @@ window.abrirModalCompra = abrirModalCompra;
 window.fecharModalCompra = fecharModalCompra;
 window.buscarCEP = buscarCEP;
 window.fecharModalBoasVindas = fecharModalBoasVindas;
+// Funções do carrinho
+window.adicionarAoCarrinho = adicionarAoCarrinho;
+window.removerDoCarrinho = removerDoCarrinho;
+window.atualizarQuantidadeCarrinho = atualizarQuantidadeCarrinho;
+window.abrirModalCarrinho = abrirModalCarrinho;
+window.fecharModalCarrinho = fecharModalCarrinho;
+window.finalizarCompraCarrinho = finalizarCompraCarrinho;
+window.limparCarrinho = limparCarrinho;

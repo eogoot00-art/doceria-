@@ -24,6 +24,10 @@
                 </div>
             </div>
             <div class="header-social">
+                <button class="header-carrinho" onclick="abrirModalCarrinho()" aria-label="Carrinho de Compras">
+                    <span class="carrinho-icon">🛒</span>
+                    <span class="carrinho-contador" id="carrinhoContador">0</span>
+                </button>
                 <a href="https://www.instagram.com/flor_de_chocolate2025?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==" target="_blank" class="header-instagram" aria-label="Instagram">
                     <img src="logo-flor-chocolate.png" alt="Flor de Chocolate" class="instagram-image">
                     <span class="instagram-text">@flor_de_chocolate2025</span>
@@ -246,6 +250,38 @@
             </div>
         </div>
     </footer>
+
+    <!-- ============================================
+         MODAL DO CARRINHO
+         Visualização e gerenciamento do carrinho
+         ============================================ -->
+    <div id="modalCarrinho" class="modal-carrinho">
+        <div class="modal-carrinho-content">
+            <button class="modal-carrinho-close" onclick="fecharModalCarrinho()">&times;</button>
+            <div class="modal-carrinho-header">
+                <h2>🛒 Meu Carrinho</h2>
+            </div>
+            <div class="carrinho-body">
+                <div id="carrinhoItens" class="carrinho-itens">
+                    <!-- Itens do carrinho serão adicionados dinamicamente -->
+                </div>
+                <div class="carrinho-footer">
+                    <div class="carrinho-total">
+                        <strong>Total:</strong>
+                        <span id="carrinhoTotal" class="carrinho-total-valor">R$ 0,00</span>
+                    </div>
+                    <div class="carrinho-acoes">
+                        <button class="btn-limpar-carrinho" onclick="limparCarrinho()">
+                            Limpar Carrinho
+                        </button>
+                        <button class="btn-finalizar-carrinho" id="btnFinalizarCarrinho" onclick="finalizarCompraCarrinho()">
+                            Finalizar Compra
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- ============================================
          MODAL DE COMPRA
