@@ -4,6 +4,8 @@
    Integração com WhatsApp para pedidos
    Animações ao rolar a página
    Mensagem de boas-vindas
+   Sistema de autenticação (Admin e Cliente)
+   Painel administrativo
    ============================================ */
 
 // ============================================
@@ -95,6 +97,432 @@ let produtoSelecionado = null;
 
 // Array para armazenar produtos no carrinho
 let carrinho = [];
+
+// ============================================
+// SISTEMA DE AUTENTICAÇÃO
+// ============================================
+
+// Credenciais do administrador (padrão)
+const ADMIN_CREDENTIALS = {
+    usuario: 'admin',
+    senha: 'FlorChocolate2026!'
+};
+
+// Estado de autenticação
+let usuarioLogado = null;
+let adminLogado = false;
+let visitantes = [];
+
+/**
+ * Inicializa o sistema de autenticação
+ */
+function inicializarAuth() {
+    // Verifica se admin está logado
+    const adminSalvo = sessionStorage.getItem('adminLogado');
+    if (adminSalvo === 'true') {
+        adminLogado = true;
+        mostrarPainelAdmin();
+    }
+    
+    // Carrega visitantes
+    carregarVisitantes();
+    
+    // Registra nova visita
+    registrarVisita();
+}
+
+/**
+ * Registra uma visita ao site
+ */
+function registrarVisita() {
+    const visitas = JSON.parse(localStorage.getItem('visitas') || '[]');
+    const agora = new Date();
+    const visita = {
+        data: agora.toISOString(),
+        hora: agora.toLocaleTimeString('pt-BR'),
+        dataFormatada: agora.toLocaleDateString('pt-BR')
+    };
+    visitas.push(visita);
+    localStorage.setItem('visitas', JSON.stringify(visitas));
+    visitantes = visitas;
+    
+    if (adminLogado) {
+        atualizarEstatisticasAdmin();
+    }
+}
+
+/**
+ * Carrega visitantes do localStorage
+ */
+function carregarVisitantes() {
+    const visitas = localStorage.getItem('visitas');
+    if (visitas) {
+        visitantes = JSON.parse(visitas);
+    }
+}
+
+/**
+ * Login do administrador
+ */
+function fazerLoginAdmin(usuario, senha) {
+    if (usuario === ADMIN_CREDENTIALS.usuario && senha === ADMIN_CREDENTIALS.senha) {
+        adminLogado = true;
+        sessionStorage.setItem('adminLogado', 'true');
+        mostrarPainelAdmin();
+        fecharModalAdminLogin();
+        mostrarMensagemCarrinho('Login realizado com sucesso! ✅');
+        return true;
+    }
+    return false;
+}
+
+/**
+ * Logout do administrador
+ */
+function sairAdmin() {
+    adminLogado = false;
+    sessionStorage.removeItem('adminLogado');
+    const painel = document.getElementById('painelAdmin');
+    if (painel) {
+        painel.style.display = 'none';
+    }
+    mostrarMensagemCarrinho('Sessão encerrada');
+}
+
+/**
+ * Abre modal de login do admin
+ */
+function abrirModalAdminLogin() {
+    const modal = document.getElementById('modalAdminLogin');
+    if (modal) {
+        modal.classList.add('show');
+        document.body.style.overflow = 'hidden';
+    }
+}
+
+/**
+ * Fecha modal de login do admin
+ */
+function fecharModalAdminLogin() {
+    const modal = document.getElementById('modalAdminLogin');
+    if (modal) {
+        modal.classList.remove('show');
+        document.body.style.overflow = '';
+    }
+}
+
+/**
+ * Mostra o painel administrativo
+ */
+function mostrarPainelAdmin() {
+    const painel = document.getElementById('painelAdmin');
+    if (painel) {
+        painel.style.display = 'block';
+        atualizarEstatisticasAdmin();
+        atualizarListaProdutosAdmin();
+        atualizarListaVisitantes();
+    }
+}
+
+/**
+ * Atualiza estatísticas do admin
+ */
+function atualizarEstatisticasAdmin() {
+    const totalVisitantes = visitantes.length;
+    const totalVisitantesEl = document.getElementById('totalVisitantes');
+    if (totalVisitantesEl) {
+        totalVisitantesEl.textContent = totalVisitantes;
+    }
+}
+
+/**
+ * Atualiza lista de produtos no painel admin
+ */
+function atualizarListaProdutosAdmin() {
+    const lista = document.getElementById('listaProdutosAdmin');
+    if (!lista) return;
+    
+    if (produtos.length === 0) {
+        lista.innerHTML = '<p style="text-align: center; padding: 20px; color: var(--dark-soft);">Nenhum produto cadastrado</p>';
+        return;
+    }
+    
+    lista.innerHTML = produtos.map((produto, index) => {
+        const precoFormatado = produto.preco.toFixed(2).replace('.', ',');
+        return `
+            <div class="produto-admin-item">
+                <div class="produto-admin-info">
+                    <h4>${produto.nome}</h4>
+                    <p>${produto.descricao.substring(0, 100)}...</p>
+                    <strong>R$ ${precoFormatado}</strong>
+                </div>
+                <div class="produto-admin-acoes">
+                    <button class="btn-editar" onclick="editarProduto(${index})">✏️ Editar</button>
+                    <button class="btn-excluir" onclick="excluirProduto(${index})">🗑️ Excluir</button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+/**
+ * Edita um produto
+ */
+function editarProduto(index) {
+    const produto = produtos[index];
+    
+    // Cria um modal para edição
+    const modal = document.createElement('div');
+    modal.className = 'modal-login show';
+    modal.style.display = 'flex';
+    modal.id = 'modalEditarProduto';
+    
+    // Prepara preview da imagem atual
+    let imagemAtualHTML = '';
+    if (produto.imagem) {
+        imagemAtualHTML = `
+            <div class="imagem-atual" style="margin-top: 10px;">
+                <p style="font-weight: 600; color: var(--chocolate-dark); margin-bottom: 10px;">Imagem Atual:</p>
+                <img src="${produto.imagem}" alt="Imagem atual" style="max-width: 200px; max-height: 200px; border-radius: 10px; border: 2px solid var(--chocolate-light);">
+            </div>
+        `;
+    }
+    
+    modal.innerHTML = `
+        <div class="modal-login-content" style="max-width: 700px; max-height: 90vh; overflow-y: auto;">
+            <button class="modal-login-close" onclick="fecharModalEditar()">&times;</button>
+            <div class="modal-login-header">
+                <h2>✏️ Editar Produto</h2>
+            </div>
+            <form id="formEditarProduto" class="form-admin">
+                <div class="form-group">
+                    <label>Nome do Produto *</label>
+                    <input type="text" id="editNome" value="${escaparHTML(produto.nome)}" required>
+                </div>
+                <div class="form-row-admin">
+                    <div class="form-group">
+                        <label>Preço (R$) *</label>
+                        <input type="number" id="editPreco" step="0.01" min="0" value="${produto.preco}" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Descrição *</label>
+                    <textarea id="editDescricao" rows="4" required>${escaparHTML(produto.descricao)}</textarea>
+                </div>
+                <div class="form-group">
+                    <label>Nova Imagem do Produto (opcional)</label>
+                    <input type="file" id="editImagem" accept="image/*" onchange="previewImagem(this, 'previewEditImagem')">
+                    <div id="previewEditImagem" class="imagem-preview" style="display: none; margin-top: 10px;">
+                        <p style="font-weight: 600; color: var(--chocolate-dark); margin-bottom: 10px;">Nova Imagem:</p>
+                        <img id="imgPreviewEdit" src="" alt="Preview" style="max-width: 200px; max-height: 200px; border-radius: 10px; border: 2px solid var(--chocolate-light);">
+                        <button type="button" onclick="removerPreview('previewEditImagem', 'editImagem')" style="margin-top: 10px; padding: 5px 15px; background: #E53935; color: white; border: none; border-radius: 5px; cursor: pointer;">Remover Nova Imagem</button>
+                    </div>
+                    ${imagemAtualHTML}
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-cancelar" onclick="fecharModalEditar()">Cancelar</button>
+                    <button type="submit" class="btn-admin">Salvar Alterações</button>
+                </div>
+            </form>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Fecha ao clicar fora
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+            fecharModalEditar();
+        }
+    });
+    
+    // Submete o formulário
+    const form = modal.querySelector('#formEditarProduto');
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const novoNome = document.getElementById('editNome').value.trim();
+        const novoPreco = parseFloat(document.getElementById('editPreco').value);
+        const novaDescricao = document.getElementById('editDescricao').value.trim();
+        const fileInput = document.getElementById('editImagem');
+        
+        if (!novoNome || !novaDescricao || isNaN(novoPreco) || novoPreco <= 0) {
+            mostrarMensagem('Por favor, preencha todos os campos corretamente!', 'error');
+            return;
+        }
+        
+        // Processa a imagem se houver uma nova
+        if (fileInput.files && fileInput.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                produtos[index] = {
+                    nome: novoNome,
+                    preco: novoPreco,
+                    descricao: novaDescricao,
+                    imagem: e.target.result // Salva como data URL (base64)
+                };
+                
+                salvarProdutos();
+                renderizarProdutos();
+                atualizarListaProdutosAdmin();
+                fecharModalEditar();
+                mostrarMensagemCarrinho('Produto atualizado com sucesso! ✅');
+            };
+            reader.readAsDataURL(fileInput.files[0]);
+        } else {
+            // Mantém a imagem atual se não houver nova
+            produtos[index] = {
+                nome: novoNome,
+                preco: novoPreco,
+                descricao: novaDescricao,
+                imagem: produto.imagem // Mantém a imagem atual
+            };
+            
+            salvarProdutos();
+            renderizarProdutos();
+            atualizarListaProdutosAdmin();
+            fecharModalEditar();
+            mostrarMensagemCarrinho('Produto atualizado com sucesso! ✅');
+        }
+    });
+}
+
+/**
+ * Fecha o modal de edição
+ */
+function fecharModalEditar() {
+    const modal = document.getElementById('modalEditarProduto');
+    if (modal) {
+        modal.remove();
+    }
+}
+
+/**
+ * Preview da imagem antes de salvar
+ */
+function previewImagem(input, previewId) {
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const preview = document.getElementById(previewId);
+            const img = preview.querySelector('img');
+            if (img) {
+                img.src = e.target.result;
+                preview.style.display = 'block';
+            }
+        };
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+
+/**
+ * Remove o preview da imagem
+ */
+function removerPreview(previewId, inputId) {
+    const preview = document.getElementById(previewId);
+    const input = document.getElementById(inputId);
+    if (preview) {
+        preview.style.display = 'none';
+        const img = preview.querySelector('img');
+        if (img) {
+            img.src = '';
+        }
+    }
+    if (input) {
+        input.value = '';
+    }
+}
+
+/**
+ * Exclui um produto
+ */
+function excluirProduto(index) {
+    if (confirm('Tem certeza que deseja excluir este produto?')) {
+        produtos.splice(index, 1);
+        salvarProdutos();
+        renderizarProdutos();
+        atualizarListaProdutosAdmin();
+        mostrarMensagemCarrinho('Produto excluído! ✅');
+    }
+}
+
+/**
+ * Salva produtos no localStorage
+ */
+function salvarProdutos() {
+    localStorage.setItem('produtosFlorChocolate', JSON.stringify(produtos));
+}
+
+/**
+ * Carrega produtos do localStorage
+ */
+function carregarProdutos() {
+    const produtosSalvos = localStorage.getItem('produtosFlorChocolate');
+    if (produtosSalvos) {
+        try {
+            const produtosCarregados = JSON.parse(produtosSalvos);
+            produtos.length = 0;
+            produtos.push(...produtosCarregados);
+        } catch (e) {
+            console.error('Erro ao carregar produtos:', e);
+        }
+    }
+}
+
+/**
+ * Atualiza lista de visitantes
+ */
+function atualizarListaVisitantes() {
+    const lista = document.getElementById('listaVisitantes');
+    if (!lista) return;
+    
+    if (visitantes.length === 0) {
+        lista.innerHTML = '<p style="text-align: center; padding: 20px; color: var(--dark-soft);">Nenhuma visita registrada</p>';
+        return;
+    }
+    
+    // Agrupa visitas por data
+    const visitasPorData = {};
+    visitantes.forEach(v => {
+        const data = v.dataFormatada || new Date(v.data).toLocaleDateString('pt-BR');
+        if (!visitasPorData[data]) {
+            visitasPorData[data] = [];
+        }
+        visitasPorData[data].push(v);
+    });
+    
+    lista.innerHTML = Object.keys(visitasPorData).reverse().slice(0, 30).map(data => {
+        const visitas = visitasPorData[data];
+        return `
+            <div class="visita-item">
+                <div class="visita-data">📅 ${data}</div>
+                <div class="visita-count">${visitas.length} visita(s)</div>
+                <div class="visita-horas">
+                    ${visitas.slice(-5).map(v => v.hora || new Date(v.data).toLocaleTimeString('pt-BR')).join(', ')}
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+/**
+ * Mostra tab do painel admin
+ */
+function mostrarTabAdmin(tab) {
+    document.querySelectorAll('.painel-tab-content').forEach(content => {
+        content.classList.remove('active');
+    });
+    document.querySelectorAll('.painel-tab').forEach(t => {
+        t.classList.remove('active');
+    });
+    
+    document.getElementById(`tab${tab.charAt(0).toUpperCase() + tab.slice(1)}`).classList.add('active');
+    event.target.classList.add('active');
+    
+    if (tab === 'visitantes') {
+        atualizarListaVisitantes();
+    }
+}
 
 /**
  * Adiciona um produto ao carrinho
@@ -1021,6 +1449,12 @@ function configurarBotoesWhatsApp() {
  * Inicializa produtos e configura animações
  */
 document.addEventListener('DOMContentLoaded', () => {
+    // Carrega produtos do localStorage
+    carregarProdutos();
+    
+    // Inicializa sistema de autenticação
+    inicializarAuth();
+    
     // Carrega o carrinho do localStorage
     carregarCarrinho();
     
@@ -1092,6 +1526,105 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => {
         criarModalBoasVindas();
     }, 1000);
+    
+    // Formulário de login do admin
+    const formAdminLogin = document.getElementById('formAdminLogin');
+    if (formAdminLogin) {
+        formAdminLogin.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const usuario = document.getElementById('adminUsuario').value.trim();
+            const senha = document.getElementById('adminSenha').value;
+            
+            if (!usuario || !senha) {
+                mostrarMensagem('Por favor, preencha todos os campos!', 'error');
+                return;
+            }
+            
+            if (fazerLoginAdmin(usuario, senha)) {
+                // Sucesso já tratado na função
+            } else {
+                mostrarMensagem('Usuário ou senha incorretos!', 'error');
+                // Limpa os campos
+                document.getElementById('adminUsuario').value = '';
+                document.getElementById('adminSenha').value = '';
+            }
+        });
+    }
+    
+    // Formulário de adicionar produto (admin)
+    const formAdicionarProduto = document.getElementById('formAdicionarProduto');
+    if (formAdicionarProduto) {
+        formAdicionarProduto.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const nome = document.getElementById('produtoNome').value.trim();
+            const preco = parseFloat(document.getElementById('produtoPreco').value);
+            const descricao = document.getElementById('produtoDescricao').value.trim();
+            const fileInput = document.getElementById('produtoImagem');
+            
+            if (!nome || !descricao || isNaN(preco) || preco <= 0) {
+                mostrarMensagem('Por favor, preencha todos os campos obrigatórios!', 'error');
+                return;
+            }
+            
+            // Processa a imagem se houver
+            if (fileInput.files && fileInput.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    produtos.push({
+                        nome,
+                        preco,
+                        descricao,
+                        imagem: e.target.result // Salva como data URL (base64)
+                    });
+                    
+                    salvarProdutos();
+                    renderizarProdutos();
+                    atualizarListaProdutosAdmin();
+                    formAdicionarProduto.reset();
+                    // Limpa o preview
+                    const preview = document.getElementById('previewNovaImagem');
+                    if (preview) {
+                        preview.style.display = 'none';
+                        const img = preview.querySelector('img');
+                        if (img) img.src = '';
+                    }
+                    mostrarMensagemCarrinho('Produto adicionado com sucesso! ✅');
+                };
+                reader.readAsDataURL(fileInput.files[0]);
+            } else {
+                // Adiciona sem imagem
+                produtos.push({
+                    nome,
+                    preco,
+                    descricao,
+                    imagem: null
+                });
+                
+                salvarProdutos();
+                renderizarProdutos();
+                atualizarListaProdutosAdmin();
+                formAdicionarProduto.reset();
+                mostrarMensagemCarrinho('Produto adicionado com sucesso! ✅');
+            }
+        });
+    }
+    
+    // Fecha modal de login admin ao clicar fora
+    const modalAdminLogin = document.getElementById('modalAdminLogin');
+    if (modalAdminLogin) {
+        modalAdminLogin.addEventListener('click', function(e) {
+            if (e.target === modalAdminLogin) {
+                fecharModalAdminLogin();
+            }
+        });
+    }
+    
+    // Fecha modal de login admin com ESC
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            fecharModalAdminLogin();
+        }
+    });
 });
 
 // ============================================
@@ -1114,3 +1647,13 @@ window.abrirModalCarrinho = abrirModalCarrinho;
 window.fecharModalCarrinho = fecharModalCarrinho;
 window.finalizarCompraCarrinho = finalizarCompraCarrinho;
 window.limparCarrinho = limparCarrinho;
+// Funções de autenticação admin
+window.abrirModalAdminLogin = abrirModalAdminLogin;
+window.fecharModalAdminLogin = fecharModalAdminLogin;
+window.sairAdmin = sairAdmin;
+window.mostrarTabAdmin = mostrarTabAdmin;
+window.editarProduto = editarProduto;
+window.excluirProduto = excluirProduto;
+window.fecharModalEditar = fecharModalEditar;
+window.previewImagem = previewImagem;
+window.removerPreview = removerPreview;

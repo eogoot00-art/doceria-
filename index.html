@@ -15,6 +15,10 @@
          Logo, nome da doceria e menu de navegação
          ============================================ -->
     <header class="header">
+        <!-- Botão escondido para login de administrador -->
+        <button class="admin-login-btn" onclick="abrirModalAdminLogin()" title="Login Administrador" aria-label="Login Administrador">
+            🔐
+        </button>
         <div class="container">
             <div class="logo">
                 <div class="logo-icon">🌺</div>
@@ -24,7 +28,7 @@
                 </div>
             </div>
             <div class="header-social">
-                <button class="header-carrinho" onclick="abrirModalCarrinho()" aria-label="Carrinho de Compras">
+                <button class="header-carrinho" id="btnCarrinho" onclick="abrirModalCarrinho()" aria-label="Carrinho de Compras">
                     <span class="carrinho-icon">🛒</span>
                     <span class="carrinho-contador" id="carrinhoContador">0</span>
                 </button>
@@ -142,6 +146,14 @@
                             <span class="preco-original">R$ 3,50</span>
                             <span class="preco-promocao">R$ 3,00</span>
                         </div>
+                        <div class="promocao-botoes">
+                            <button class="btn-comprar" onclick="abrirModalCompra('Brigadeiro Dourado', 3.00)">
+                                Comprar Agora
+                            </button>
+                            <button class="btn-carrinho" onclick="adicionarAoCarrinho('Brigadeiro Dourado', 3.00)">
+                                🛒 Adicionar ao Carrinho
+                            </button>
+                        </div>
                     </div>
                 </div>
                 
@@ -157,6 +169,14 @@
                             <span class="preco-original">R$ 75,00</span>
                             <span class="preco-promocao">R$ 67,50</span>
                         </div>
+                        <div class="promocao-botoes">
+                            <button class="btn-comprar" onclick="abrirModalCompra('Bolo da Vovó', 67.50)">
+                                Comprar Agora
+                            </button>
+                            <button class="btn-carrinho" onclick="adicionarAoCarrinho('Bolo da Vovó', 67.50)">
+                                🛒 Adicionar ao Carrinho
+                            </button>
+                        </div>
                     </div>
                 </div>
                 
@@ -171,6 +191,14 @@
                         <div class="promocao-preco">
                             <span class="preco-original">R$ 45,00</span>
                             <span class="preco-promocao">R$ 40,00</span>
+                        </div>
+                        <div class="promocao-botoes">
+                            <button class="btn-comprar" onclick="abrirModalCompra('Cupcake Surpresa', 40.00)">
+                                Comprar Agora
+                            </button>
+                            <button class="btn-carrinho" onclick="adicionarAoCarrinho('Cupcake Surpresa', 40.00)">
+                                🛒 Adicionar ao Carrinho
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -369,6 +397,100 @@
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- ============================================
+         MODAL DE LOGIN ADMINISTRADOR
+         ============================================ -->
+    <div id="modalAdminLogin" class="modal-login">
+        <div class="modal-login-content">
+            <button class="modal-login-close" onclick="fecharModalAdminLogin()">&times;</button>
+            <div class="modal-login-header">
+                <h2>🔐 Login Administrador</h2>
+            </div>
+            <form id="formAdminLogin" class="form-login">
+                <div class="form-group">
+                    <label for="adminUsuario">Usuário *</label>
+                    <input type="text" id="adminUsuario" name="usuario" placeholder="Usuário" required>
+                </div>
+                <div class="form-group">
+                    <label for="adminSenha">Senha *</label>
+                    <input type="password" id="adminSenha" name="senha" placeholder="Senha" required>
+                </div>
+                <button type="submit" class="btn-login-submit">Entrar</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ============================================
+         PAINEL ADMINISTRATIVO
+         ============================================ -->
+    <div id="painelAdmin" class="painel-admin" style="display: none;">
+        <div class="painel-admin-header">
+            <h2>🔐 Painel Administrativo</h2>
+            <div class="painel-admin-stats">
+                <div class="stat-item">
+                    <span class="stat-label">Visitantes:</span>
+                    <span class="stat-value" id="totalVisitantes">0</span>
+                </div>
+            </div>
+            <button class="btn-sair-admin" onclick="sairAdmin()">Sair</button>
+        </div>
+        <div class="painel-admin-content">
+            <div class="painel-tabs">
+                <button class="painel-tab active" onclick="mostrarTabAdmin('produtos')">Gerenciar Produtos</button>
+                <button class="painel-tab" onclick="mostrarTabAdmin('visitantes')">Visitantes</button>
+            </div>
+            
+            <!-- Tab de Produtos -->
+            <div id="tabProdutos" class="painel-tab-content active">
+                <div class="admin-section">
+                    <h3>Adicionar Novo Produto</h3>
+                    <form id="formAdicionarProduto" class="form-admin">
+                        <div class="form-row-admin">
+                            <div class="form-group">
+                                <label for="produtoNome">Nome do Produto *</label>
+                                <input type="text" id="produtoNome" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="produtoPreco">Preço (R$) *</label>
+                                <input type="number" id="produtoPreco" step="0.01" min="0" required>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="produtoDescricao">Descrição *</label>
+                            <textarea id="produtoDescricao" rows="3" required></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="produtoImagem">Imagem do Produto (opcional)</label>
+                            <input type="file" id="produtoImagem" accept="image/*" onchange="previewImagem(this, 'previewNovaImagem')">
+                            <div id="previewNovaImagem" class="imagem-preview" style="display: none; margin-top: 10px;">
+                                <img id="imgPreviewNova" src="" alt="Preview" style="max-width: 200px; max-height: 200px; border-radius: 10px; border: 2px solid var(--chocolate-light);">
+                                <button type="button" onclick="removerPreview('previewNovaImagem', 'produtoImagem')" style="margin-top: 10px; padding: 5px 15px; background: #E53935; color: white; border: none; border-radius: 5px; cursor: pointer;">Remover Imagem</button>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn-admin">➕ Adicionar Produto</button>
+                    </form>
+                </div>
+                
+                <div class="admin-section">
+                    <h3>Produtos Cadastrados</h3>
+                    <div id="listaProdutosAdmin" class="lista-produtos-admin">
+                        <!-- Produtos serão listados aqui -->
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Tab de Visitantes -->
+            <div id="tabVisitantes" class="painel-tab-content">
+                <div class="admin-section">
+                    <h3>Estatísticas de Visitantes</h3>
+                    <div id="listaVisitantes" class="lista-visitantes">
+                        <!-- Visitantes serão listados aqui -->
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
