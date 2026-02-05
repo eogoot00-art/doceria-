@@ -6,366 +6,111 @@
    Mensagem de boas-vindas
    Sistema de autenticação (Admin e Cliente)
    Painel administrativo
-   Sistema de notificações push
-   Cache de dados offline
-   Analytics básico
    ============================================ */
-
-// ============================================
-// CONFIGURAÇÕES GLOBAIS
-// ============================================
-const CONFIG = {
-    whatsappNumber: '+55 12 99221-6807',
-    instagramUrl: 'https://www.instagram.com/flor_de_chocolate2025',
-    businessName: 'Flor de Chocolate',
-    businessEmail: 'flordechocolate2026@gmail.com',
-    version: '2.1.0',
-    cacheVersion: 'v2.1',
-    enableAnalytics: true,
-    enableNotifications: true
-};
-
-// ============================================
-// SISTEMA DE CACHE E OFFLINE
-// ============================================
-class CacheManager {
-    constructor() {
-        this.cacheName = `florchocolate-${CONFIG.cacheVersion}`;
-        this.init();
-    }
-
-    async init() {
-        if ('serviceWorker' in navigator) {
-            try {
-                await navigator.serviceWorker.register('/sw.js');
-                console.log('Service Worker registrado com sucesso');
-            } catch (error) {
-                console.log('Erro ao registrar Service Worker:', error);
-            }
-        }
-    }
-
-    saveToCache(key, data) {
-        try {
-            const cacheData = {
-                data,
-                timestamp: Date.now(),
-                version: CONFIG.cacheVersion
-            };
-            localStorage.setItem(`${this.cacheName}-${key}`, JSON.stringify(cacheData));
-        } catch (error) {
-            console.warn('Erro ao salvar no cache:', error);
-        }
-    }
-
-    getFromCache(key, maxAge = 24 * 60 * 60 * 1000) { // 24 horas por padrão
-        try {
-            const cached = localStorage.getItem(`${this.cacheName}-${key}`);
-            if (!cached) return null;
-
-            const cacheData = JSON.parse(cached);
-            const isExpired = Date.now() - cacheData.timestamp > maxAge;
-            const isOldVersion = cacheData.version !== CONFIG.cacheVersion;
-
-            if (isExpired || isOldVersion) {
-                localStorage.removeItem(`${this.cacheName}-${key}`);
-                return null;
-            }
-
-            return cacheData.data;
-        } catch (error) {
-            console.warn('Erro ao ler do cache:', error);
-            return null;
-        }
-    }
-
-    clearOldCache() {
-        try {
-            const keys = Object.keys(localStorage);
-            keys.forEach(key => {
-                if (key.startsWith('florchocolate-') && !key.includes(CONFIG.cacheVersion)) {
-                    localStorage.removeItem(key);
-                }
-            });
-        } catch (error) {
-            console.warn('Erro ao limpar cache antigo:', error);
-        }
-    }
-}
-
-// ============================================
-// SISTEMA DE ANALYTICS BÁSICO
-// ============================================
-class Analytics {
-    constructor() {
-        this.events = [];
-        this.sessionId = this.generateSessionId();
-        this.startTime = Date.now();
-        this.init();
-    }
-
-    generateSessionId() {
-        return Date.now().toString(36) + Math.random().toString(36).substr(2);
-    }
-
-    init() {
-        if (!CONFIG.enableAnalytics) return;
-        
-        this.trackPageView();
-        this.trackUserAgent();
-        this.setupEventListeners();
-    }
-
-    trackEvent(eventName, data = {}) {
-        if (!CONFIG.enableAnalytics) return;
-
-        const event = {
-            name: eventName,
-            data,
-            timestamp: Date.now(),
-            sessionId: this.sessionId,
-            url: window.location.href
-        };
-
-        this.events.push(event);
-        this.saveEvents();
-        
-        // Log para desenvolvimento
-        console.log('📊 Analytics:', eventName, data);
-    }
-
-    trackPageView() {
-        this.trackEvent('page_view', {
-            page: window.location.pathname,
-            referrer: document.referrer,
-            userAgent: navigator.userAgent
-        });
-    }
-
-    trackUserAgent() {
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        this.trackEvent('device_info', {
-            isMobile,
-            screenWidth: window.screen.width,
-            screenHeight: window.screen.height,
-            language: navigator.language
-        });
-    }
-
-    setupEventListeners() {
-        // Track clicks em botões importantes
-        document.addEventListener('click', (e) => {
-            if (e.target.matches('.btn-comprar')) {
-                this.trackEvent('product_buy_click', {
-                    product: e.target.closest('.produto-card')?.querySelector('.produto-nome')?.textContent
-                });
-            }
-            
-            if (e.target.matches('.btn-carrinho')) {
-                this.trackEvent('add_to_cart_click', {
-                    product: e.target.closest('.produto-card')?.querySelector('.produto-nome')?.textContent
-                });
-            }
-
-            if (e.target.matches('.btn-whatsapp')) {
-                this.trackEvent('whatsapp_click', {
-                    context: 'contact_section'
-                });
-            }
-        });
-
-        // Track tempo na página
-        window.addEventListener('beforeunload', () => {
-            const timeOnPage = Date.now() - this.startTime;
-            this.trackEvent('session_end', {
-                duration: timeOnPage,
-                eventsCount: this.events.length
-            });
-        });
-    }
-
-    saveEvents() {
-        try {
-            const existingEvents = JSON.parse(localStorage.getItem('analytics_events') || '[]');
-            const allEvents = [...existingEvents, ...this.events];
-            
-            // Manter apenas os últimos 1000 eventos
-            const recentEvents = allEvents.slice(-1000);
-            localStorage.setItem('analytics_events', JSON.stringify(recentEvents));
-            
-            this.events = []; // Limpa eventos locais após salvar
-        } catch (error) {
-            console.warn('Erro ao salvar eventos de analytics:', error);
-        }
-    }
-
-    getStats() {
-        try {
-            const events = JSON.parse(localStorage.getItem('analytics_events') || '[]');
-            const pageViews = events.filter(e => e.name === 'page_view').length;
-            const productClicks = events.filter(e => e.name === 'product_buy_click').length;
-            const cartAdds = events.filter(e => e.name === 'add_to_cart_click').length;
-            
-            return {
-                totalEvents: events.length,
-                pageViews,
-                productClicks,
-                cartAdds,
-                lastVisit: events.length > 0 ? new Date(events[events.length - 1].timestamp) : null
-            };
-        } catch (error) {
-            console.warn('Erro ao obter estatísticas:', error);
-            return {};
-        }
-    }
-}
-
-// ============================================
-// SISTEMA DE NOTIFICAÇÕES
-// ============================================
-class NotificationManager {
-    constructor() {
-        this.permission = 'default';
-        this.init();
-    }
-
-    async init() {
-        if (!CONFIG.enableNotifications || !('Notification' in window)) return;
-        
-        this.permission = await Notification.requestPermission();
-    }
-
-    show(title, options = {}) {
-        if (!CONFIG.enableNotifications || this.permission !== 'granted') return;
-
-        const defaultOptions = {
-            icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🌺</text></svg>',
-            badge: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🍫</text></svg>',
-            tag: 'flor-chocolate',
-            renotify: false,
-            ...options
-        };
-
-        try {
-            const notification = new Notification(title, defaultOptions);
-            
-            notification.onclick = () => {
-                window.focus();
-                notification.close();
-                if (options.onClick) options.onClick();
-            };
-
-            // Auto close após 5 segundos
-            setTimeout(() => notification.close(), 5000);
-            
-            return notification;
-        } catch (error) {
-            console.warn('Erro ao mostrar notificação:', error);
-        }
-    }
-
-    showOrderConfirmation(productName) {
-        this.show('Pedido Enviado! 🎉', {
-            body: `Seu pedido de ${productName} foi enviado para o WhatsApp. Aguarde nosso contato!`,
-            onClick: () => analytics.trackEvent('notification_click', { type: 'order_confirmation' })
-        });
-    }
-
-    showCartUpdate(productName) {
-        this.show('Produto Adicionado! 🛒', {
-            body: `${productName} foi adicionado ao seu carrinho`,
-            onClick: () => abrirModalCarrinho()
-        });
-    }
-}
-
-// ============================================
-// INSTÂNCIAS GLOBAIS
-// ============================================
-const cacheManager = new CacheManager();
-const analytics = new Analytics();
-const notifications = new NotificationManager();
 
 // ============================================
 // ARRAY DE PRODUTOS
 // Contém todos os produtos disponíveis na doceria
-// Cada produto possui: nome, descricao, preco, imagem e sabores
+// Cada produto possui: nome, descricao, preco e imagem
 // ============================================
 const produtos = [
     {
-        nome: "Brigadeiro Dourado",
-        descricao: "O clássico brasileiro elevado à perfeição! Feito com chocolate belga premium e leite condensado selecionado, enrolado à mão com muito carinho. Coberto com granulados dourados que brilham como pequenas joias. Cada mordida é uma explosão de sabor que derrete na boca e aquece o coração.",
-        preco: 3.50,
+        nome: "Brigadeiros",
+        descricao: "O clássico brasileiro que conquistou o mundo! Feitos com ingredientes premium e enrolados à mão com muito carinho. Escolha seu sabor favorito ou experimente todos!",
         imagem: "https://images.unsplash.com/photo-1603532648955-039310d9ed75?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-        sabores: ["Tradicional", "Chocolate Belga", "Chocolate Branco", "Café", "Coco"]
+        sabores: [
+            { nome: "Tradicional", preco: 3.00, descricao: "Chocolate em pó premium com granulado tradicional" },
+            { nome: "Dourado", preco: 3.50, descricao: "Chocolate belga com granulado dourado especial" },
+            { nome: "Nutella", preco: 4.00, descricao: "Cremoso sabor Nutella com granulado especial" },
+            { nome: "Ninho", preco: 3.50, descricao: "Suave sabor leite Ninho coberto com leite em pó" },
+            { nome: "Maracujá", preco: 3.50, descricao: "Refrescante sabor tropical com açúcar cristal" },
+            { nome: "Oreo", preco: 4.00, descricao: "Cremoso com pedaços de biscoito Oreo" }
+        ]
     },
     {
-        nome: "Brownie do Céu",
-        descricao: "Uma tentação irresistível de chocolate! Macio e cremoso por dentro, com uma crosta crocante e dourada por fora. Feito com chocolate belga premium e muito amor. Cada pedaço é uma experiência única que você não vai conseguir esquecer.",
-        preco: 9.00,
-        imagem: "https://images.unsplash.com/photo-1606313564200-e75d5e30476c?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-        sabores: ["Chocolate Tradicional", "Chocolate com Nozes", "Chocolate Branco", "Doce de Leite"]
-    },
-    {
-        nome: "Cupcake Surpresa",
-        descricao: "Pequenos bolos recheados com surpresas deliciosas! Massa fofinha, recheio cremoso e cobertura especial. Cada cupcake é uma obra de arte doce, perfeita para celebrar momentos especiais ou simplesmente se mimar.",
-        preco: 7.50,
-        imagem: "https://images.unsplash.com/photo-1614707267537-b85aaf00c4b7?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-        sabores: ["Baunilha", "Chocolate", "Morango", "Limão", "Red Velvet", "Cenoura"]
-    },
-    {
-        nome: "Bolo da Vovó",
-        descricao: "O sabor caseiro que aquece a alma! Feito com receita tradicional e ingredientes selecionados. Macio, fofinho e cheio de carinho. Perfeito para aniversários, comemorações ou qualquer momento que mereça ser celebrado com doçura.",
-        preco: 75.00,
-        imagem: "https://images.unsplash.com/photo-1578985545062-69928b1d9587?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-        sabores: ["Chocolate", "Baunilha", "Morango", "Cenoura", "Coco", "Limão", "Prestígio"]
-    },
-    {
-        nome: "Trufa dos Sonhos",
-        descricao: "Pequenas esferas de puro prazer! Recheio cremoso de chocolate premium envolto em uma casca delicada. Cada trufa é uma experiência sofisticada que derrete na boca e deixa um sabor inesquecível. Elegância e sabor em cada mordida.",
-        preco: 4.00,
-        imagem: "https://images.unsplash.com/photo-1511381939415-e44015466834?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-        sabores: ["Maracujá", "Brigadeiro", "Limão", "Morango", "Café", "Coco", "Chocolate Belga", "Doce de Leite"],
-        personalizavel: true,
-        precosPorSabor: {
-            "Maracujá": 4.50,
-            "Brigadeiro": 4.00,
-            "Limão": 4.20,
-            "Morango": 4.30,
-            "Café": 4.40,
-            "Coco": 4.10,
-            "Chocolate Belga": 5.00,
-            "Doce de Leite": 4.60
-        }
-    },
-    {
-        nome: "Beijinho de Coco",
-        descricao: "A doçura do coco em sua forma mais pura! Preparado com coco fresco e leite condensado selecionado. Enrolado à mão e coberto com açúcar cristal que brilha como pérolas. Um carinho doce que derrete na boca.",
-        preco: 3.00,
+        nome: "Beijinhos",
+        descricao: "A doçura do coco em suas mais deliciosas variações! Preparados com coco fresco e leite condensado selecionado. Cada beijinho é um carinho doce que derrete na boca.",
         imagem: "https://images.unsplash.com/photo-1551024506-0bccd828d307?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-        sabores: ["Coco Tradicional", "Coco Queimado", "Coco com Leite Condensado"]
+        sabores: [
+            { nome: "Tradicional", preco: 3.00, descricao: "Coco fresco com cobertura de coco ralado" },
+            { nome: "Limão", preco: 3.50, descricao: "Cítrico refrescante com raspas de limão" },
+            { nome: "Chocolate Branco", preco: 4.00, descricao: "Cremosidade do chocolate branco com coco" },
+            { nome: "Maracujá", preco: 3.50, descricao: "Tropical e refrescante com polpa natural" }
+        ]
     },
     {
-        nome: "Cookie Crocante",
-        descricao: "A combinação perfeita de texturas! Crocante por fora, macio por dentro, recheado com pedaços generosos de chocolate. Feito com receita especial e muito carinho. Perfeito para acompanhar um café ou chá especial.",
-        preco: 5.00,
+        nome: "Trufas Gourmet",
+        descricao: "Pequenas esferas de puro prazer! Recheios cremosos envoltos em cascas delicadas. Cada trufa é uma experiência sofisticada que derrete na boca e deixa um sabor inesquecível.",
+        imagem: "https://images.unsplash.com/photo-1511381939415-e44015466834?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+        sabores: [
+            { nome: "Chocolate Belga", preco: 4.50, descricao: "Recheio cremoso de chocolate belga premium" },
+            { nome: "Café", preco: 5.00, descricao: "Sabor intenso de café premium com cacau" },
+            { nome: "Morango", preco: 5.00, descricao: "Recheio frutado com chocolate branco" },
+            { nome: "Pistache", preco: 6.00, descricao: "Sofisticado sabor de pistache importado" },
+            { nome: "Doce de Leite", preco: 5.50, descricao: "Cremoso doce de leite argentino" },
+            { nome: "Limão", preco: 5.00, descricao: "Refrescante sabor cítrico com chocolate branco" }
+        ]
+    },
+    {
+        nome: "Brownies",
+        descricao: "Tentação irresistível de chocolate! Macios e cremosos por dentro, com crosta crocante por fora. Feitos com chocolate belga premium e muito amor. Escolha sua variação favorita!",
+        imagem: "https://images.unsplash.com/photo-1606313564200-e75d5e30476c?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+        sabores: [
+            { nome: "Tradicional", preco: 8.00, descricao: "Clássico brownie de chocolate belga" },
+            { nome: "Com Nozes", preco: 9.50, descricao: "Com pedaços crocantes de nozes selecionadas" },
+            { nome: "Doce de Leite", preco: 10.00, descricao: "Recheio cremoso de doce de leite argentino" },
+            { nome: "Cookies & Cream", preco: 10.50, descricao: "Com pedaços de biscoito Oreo" }
+        ]
+    },
+    {
+        nome: "Cupcakes",
+        descricao: "Pequenos bolos com coberturas especiais! Massas fofinhas e úmidas, cobertas com buttercream cremoso. Decorados com carinho e finalizados com detalhes especiais.",
+        imagem: "https://images.unsplash.com/photo-1614707267537-b85aaf00c4b7?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+        sabores: [
+            { nome: "Chocolate", preco: 6.50, descricao: "Massa de chocolate com buttercream de chocolate" },
+            { nome: "Baunilha", preco: 6.00, descricao: "Massa delicada com buttercream colorido" },
+            { nome: "Red Velvet", preco: 7.50, descricao: "Massa aveludada vermelha com cream cheese" },
+            { nome: "Limão", preco: 6.50, descricao: "Massa cítrica com cream cheese e raspas de limão" },
+            { nome: "Morango", preco: 7.00, descricao: "Massa de baunilha com buttercream de morango" },
+            { nome: "Cenoura", preco: 6.50, descricao: "Massa de cenoura com cobertura de chocolate" }
+        ]
+    },
+    {
+        nome: "Bolos",
+        descricao: "Bolos especiais para celebrações! Massas fofinhas e úmidas, recheios cremosos e coberturas especiais. Feitos com ingredientes premium e muito carinho. Perfeitos para ocasiões especiais.",
+        imagem: "https://images.unsplash.com/photo-1578985545062-69928b1d9587?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+        sabores: [
+            { nome: "Chocolate", preco: 65.00, descricao: "Massa de chocolate com recheio e cobertura de chocolate" },
+            { nome: "Bolo da Vovó", preco: 70.00, descricao: "Receita tradicional com doce de leite e chocolate" },
+            { nome: "Morango", preco: 75.00, descricao: "Massa de baunilha com creme e morangos frescos" },
+            { nome: "Cenoura", preco: 60.00, descricao: "Clássico brasileiro com cobertura de chocolate" },
+            { nome: "Red Velvet", preco: 80.00, descricao: "Massa vermelha aveludada com cream cheese" },
+            { nome: "Limão", preco: 65.00, descricao: "Massa cítrica com recheio de limão e merengue" }
+        ]
+    },
+    {
+        nome: "Cookies",
+        descricao: "Combinação perfeita de texturas! Crocantes por fora, macios por dentro. Feitos com receitas especiais e ingredientes selecionados. Perfeitos para acompanhar um café ou chá.",
         imagem: "https://images.unsplash.com/photo-1499636136210-6f4ee915583e?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-        sabores: ["Chocolate Chip", "Aveia e Passas", "Chocolate Branco", "Amendoim", "Coco"]
+        sabores: [
+            { nome: "Chocolate", preco: 4.50, descricao: "Com pedaços generosos de chocolate belga" },
+            { nome: "Aveia e Passas", preco: 4.00, descricao: "Nutritivo com aveia em flocos e passas" },
+            { nome: "Red Velvet", preco: 5.00, descricao: "Massa vermelha com chocolate branco" },
+            { nome: "Limão", preco: 4.50, descricao: "Cítrico refrescante com raspas de limão" },
+            { nome: "Amendoim", preco: 4.50, descricao: "Crocante com pasta de amendoim" }
+        ]
     },
     {
-        nome: "Copo da Felicidade",
-        descricao: "Felicidade em camadas especialmente para você! Bolo macio, recheio cremoso e cobertura especial em um copo individual. Cada colherada é uma surpresa deliciosa. Perfeito para presentear ou se mimar!",
-        preco: 12.00,
+        nome: "Copos da Felicidade",
+        descricao: "Felicidade em camadas! Bolos macios, recheios cremosos e coberturas especiais em copos individuais. Cada colherada é uma surpresa deliciosa. Perfeitos para presentear ou se mimar!",
         imagem: "https://images.unsplash.com/photo-1556910103-1c02745aae4d?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-        sabores: ["Chocolate com Morango", "Baunilha com Frutas", "Prestígio", "Limão", "Ninho com Nutella"],
-        personalizavel: true,
-        precosPorSabor: {
-            "Chocolate com Morango": 12.50,
-            "Baunilha com Frutas": 12.00,
-            "Prestígio": 13.00,
-            "Limão": 11.50,
-            "Ninho com Nutella": 14.00
-        }
+        sabores: [
+            { nome: "Chocolate", preco: 12.00, descricao: "Camadas de bolo e mousse de chocolate" },
+            { nome: "Morango", preco: 13.00, descricao: "Bolo de baunilha com creme e morangos frescos" },
+            { nome: "Doce de Leite", preco: 13.50, descricao: "Bolo de baunilha com doce de leite argentino" },
+            { nome: "Limão", preco: 12.50, descricao: "Refrescante com creme de limão siciliano" },
+            { nome: "Red Velvet", preco: 14.00, descricao: "Massa vermelha com cream cheese" }
+        ]
     }
 ];
 
@@ -410,7 +155,7 @@ let carrinho = [];
 // Credenciais do administrador (padrão)
 const ADMIN_CREDENTIALS = {
     usuario: 'admin',
-    senha: 'FlorChocolate2026!'
+    senha: 'florchocolate2026!'
 };
 
 // Estado de autenticação
@@ -481,6 +226,40 @@ function fazerLoginAdmin(usuario, senha) {
     return false;
 }
 
+// Abre ou fecha a lista de sabores
+document.querySelectorAll("adicionar-sabores").forEach(btn => {
+  btn.addEventListener("click", (add) => {
+    const container = btn.nextElementSibling; // pega a div .sabores-opcoes
+    container.style.display = container.style.display === "none" ? "block" : "none";
+  });
+});
+
+// Confirma sabores selecionados e adiciona ao carrinho
+document.querySelectorAll(".btn-confirmar-sabores").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const container = btn.parentElement;
+    const produto = container.closest(".produto");
+    const produtoNome = produto.querySelector("h3").innerText;
+
+    // Pega todos os sabores selecionados
+    const saboresSelecionados = Array.from(container.querySelectorAll("input[type=checkbox]:checked"))
+      .map(checkbox => checkbox.value);
+
+    if (saboresSelecionados.length === 0) {
+      alert("Escolha pelo menos um sabor!");
+      return;
+    }
+
+    // Aqui você envia para o carrinho (substitua se tiver carrinho real)
+    console.log(`Produto: ${produtoNome}, Sabores: ${saboresSelecionados.join(", ")}`);
+    alert(`Produto adicionado ao carrinho: ${produtoNome} - ${saboresSelecionados.join(", ")}`);
+
+    // Fecha a lista e limpa seleção
+    container.style.display = "none";
+    container.querySelectorAll("input[type=checkbox]").forEach(cb => cb.checked = false);
+  });
+});
+
 /**
  * Logout do administrador
  */
@@ -526,6 +305,14 @@ function mostrarPainelAdmin() {
         atualizarEstatisticasAdmin();
         atualizarListaProdutosAdmin();
         atualizarListaVisitantes();
+        
+        // Garante que o botão de adicionar produto esteja habilitado
+        const btnAdicionarProduto = document.querySelector('#formAdicionarProduto button[type="submit"]');
+        if (btnAdicionarProduto) {
+            btnAdicionarProduto.disabled = false;
+            btnAdicionarProduto.style.opacity = '1';
+            btnAdicionarProduto.style.cursor = 'pointer';
+        }
     }
 }
 
@@ -593,10 +380,6 @@ function editarProduto(index) {
         `;
     }
     
-    // Prepara sabores atuais
-    const saboresAtuais = produto.sabores ? produto.sabores.join(', ') : '';
-    const isPersonalizavel = produto.personalizavel || false;
-    
     modal.innerHTML = `
         <div class="modal-login-content" style="max-width: 700px; max-height: 90vh; overflow-y: auto;">
             <button class="modal-login-close" onclick="fecharModalEditar()">&times;</button>
@@ -617,26 +400,6 @@ function editarProduto(index) {
                 <div class="form-group">
                     <label>Descrição *</label>
                     <textarea id="editDescricao" rows="4" required>${escaparHTML(produto.descricao)}</textarea>
-                </div>
-                <div class="form-group">
-                    <label>
-                        <input type="checkbox" id="editPersonalizavel" ${isPersonalizavel ? 'checked' : ''} style="margin-right: 8px;">
-                        Produto Personalizável (cliente pode escolher múltiplos sabores)
-                    </label>
-                    <small class="form-help">
-                        Marque esta opção se o cliente puder escolher vários sabores para montar seu produto personalizado.
-                    </small>
-                </div>
-                <div class="form-group">
-                    <label>Sabores/Variedades</label>
-                    <textarea 
-                        id="editSabores" 
-                        rows="3" 
-                        placeholder="Digite os sabores separados por vírgula. Ex: Maracujá, Brigadeiro, Limão"
-                    >${escaparHTML(saboresAtuais)}</textarea>
-                    <small class="form-help">
-                        Digite cada sabor separado por vírgula. Se marcou "Personalizável", o cliente poderá escolher múltiplos sabores.
-                    </small>
                 </div>
                 <div class="form-group">
                     <label>Nova Imagem do Produto (opcional)</label>
@@ -673,19 +436,11 @@ function editarProduto(index) {
         const novoNome = document.getElementById('editNome').value.trim();
         const novoPreco = parseFloat(document.getElementById('editPreco').value);
         const novaDescricao = document.getElementById('editDescricao').value.trim();
-        const novosSabores = document.getElementById('editSabores').value.trim();
-        const novoPersonalizavel = document.getElementById('editPersonalizavel').checked;
         const fileInput = document.getElementById('editImagem');
         
         if (!novoNome || !novaDescricao || isNaN(novoPreco) || novoPreco <= 0) {
             mostrarMensagem('Por favor, preencha todos os campos corretamente!', 'error');
             return;
-        }
-        
-        // Processa os sabores
-        let saboresArray = [];
-        if (novosSabores) {
-            saboresArray = novosSabores.split(',').map(sabor => sabor.trim()).filter(sabor => sabor.length > 0);
         }
         
         // Processa a imagem se houver uma nova
@@ -696,8 +451,6 @@ function editarProduto(index) {
                     nome: novoNome,
                     preco: novoPreco,
                     descricao: novaDescricao,
-                    sabores: saboresArray,
-                    personalizavel: novoPersonalizavel,
                     imagem: e.target.result // Salva como data URL (base64)
                 };
                 
@@ -714,8 +467,6 @@ function editarProduto(index) {
                 nome: novoNome,
                 preco: novoPreco,
                 descricao: novaDescricao,
-                sabores: saboresArray,
-                personalizavel: novoPersonalizavel,
                 imagem: produto.imagem // Mantém a imagem atual
             };
             
@@ -788,75 +539,26 @@ function excluirProduto(index) {
 }
 
 /**
+ * Salva produtos no localStorage
+ */
+function salvarProdutos() {
+    localStorage.setItem('produtosFlorChocolate', JSON.stringify(produtos));
+}
+
+/**
  * Carrega produtos do localStorage
  */
 function carregarProdutos() {
-    // Primeiro tenta carregar do cache
-    const produtosCache = cacheManager.getFromCache('produtos');
-    if (produtosCache && Array.isArray(produtosCache)) {
-        produtos.length = 0;
-        produtos.push(...produtosCache);
-        return;
-    }
-
-    // Se não tem cache, carrega do localStorage
     const produtosSalvos = localStorage.getItem('produtosFlorChocolate');
     if (produtosSalvos) {
         try {
             const produtosCarregados = JSON.parse(produtosSalvos);
             produtos.length = 0;
             produtos.push(...produtosCarregados);
-            
-            // Salva no cache para próximas cargas
-            cacheManager.saveToCache('produtos', produtos);
         } catch (e) {
             console.error('Erro ao carregar produtos:', e);
         }
     }
-}
-
-/**
- * Salva produtos no localStorage e cache
- */
-function salvarProdutos() {
-    localStorage.setItem('produtosFlorChocolate', JSON.stringify(produtos));
-    cacheManager.saveToCache('produtos', produtos);
-}
-
-/**
- * Carrega o carrinho do localStorage e cache
- */
-function carregarCarrinho() {
-    // Primeiro tenta carregar do cache
-    const carrinhoCache = cacheManager.getFromCache('carrinho');
-    if (carrinhoCache && Array.isArray(carrinhoCache)) {
-        carrinho = carrinhoCache;
-        atualizarContadorCarrinho();
-        return;
-    }
-
-    // Se não tem cache, carrega do localStorage
-    const carrinhoSalvo = localStorage.getItem('carrinhoFlorChocolate');
-    if (carrinhoSalvo) {
-        try {
-            carrinho = JSON.parse(carrinhoSalvo);
-            atualizarContadorCarrinho();
-            
-            // Salva no cache para próximas cargas
-            cacheManager.saveToCache('carrinho', carrinho);
-        } catch (e) {
-            console.error('Erro ao carregar carrinho:', e);
-            carrinho = [];
-        }
-    }
-}
-
-/**
- * Salva o carrinho no localStorage e cache
- */
-function salvarCarrinho() {
-    localStorage.setItem('carrinhoFlorChocolate', JSON.stringify(carrinho));
-    cacheManager.saveToCache('carrinho', carrinho);
 }
 
 /**
@@ -914,372 +616,35 @@ function mostrarTabAdmin(tab) {
     }
 }
 
-// ============================================
-// SISTEMA DE SABORES
-// ============================================
-
-// Armazena os sabores selecionados para cada produto
-let saboresSelecionados = {};
-
 /**
- * Atualiza o sabor selecionado para um produto (dropdown tradicional)
+ * Adiciona um produto ao carrinho
  * @param {string} produtoNome - Nome do produto
- * @param {string} sabor - Sabor selecionado
+ * @param {number} produtoPreco - Preço do produto
  */
-function atualizarSaborSelecionado(produtoNome, sabor) {
-    saboresSelecionados[produtoNome] = [sabor];
-    
-    // Track analytics
-    analytics.trackEvent('flavor_selected', {
-        product_name: produtoNome,
-        flavor: sabor
-    });
-}
-
-/**
- * Toggle de sabor para produtos personalizáveis (sistema de bolhas)
- * @param {string} produtoNome - Nome do produto
- * @param {string} sabor - Sabor a ser toggleado
- * @param {HTMLElement} elemento - Elemento da bolha clicada
- */
-function toggleSaborBolha(produtoNome, sabor, elemento) {
-    if (!saboresSelecionados[produtoNome]) {
-        saboresSelecionados[produtoNome] = [];
-    }
-    
-    const sabores = saboresSelecionados[produtoNome];
-    const index = sabores.indexOf(sabor);
-    
-    if (index > -1) {
-        // Remove o sabor se já estiver selecionado
-        sabores.splice(index, 1);
-        elemento.classList.remove('selecionado');
-    } else {
-        // Adiciona o sabor se não estiver selecionado
-        sabores.push(sabor);
-        elemento.classList.add('selecionado');
-    }
-    
-    // Atualiza a visualização dos sabores escolhidos
-    atualizarSaboresEscolhidos(produtoNome);
-    
-    // Atualiza o preço exibido
-    atualizarPrecoExibido(produtoNome);
-    
-    // Track analytics
-    analytics.trackEvent('flavor_toggled', {
-        product_name: produtoNome,
-        flavor: sabor,
-        action: index > -1 ? 'removed' : 'added',
-        total_flavors: sabores.length,
-        calculated_price: calcularPrecoComSabores(produtoNome, sabores)
-    });
-}
-
-/**
- * Calcula o preço total baseado nos sabores selecionados
- * @param {string} produtoNome - Nome do produto
- * @param {Array} saboresSelecionados - Array de sabores selecionados
- * @returns {number} - Preço total calculado
- */
-function calcularPrecoComSabores(produtoNome, saboresSelecionados) {
-    const produto = produtos.find(p => p.nome === produtoNome);
-    
-    if (!produto) {
-        return 0;
-    }
-    
-    // Se não é personalizável ou não tem sabores selecionados, retorna preço base
-    if (!produto.personalizavel || !saboresSelecionados || saboresSelecionados.length === 0) {
-        return produto.preco;
-    }
-    
-    // Se tem preços por sabor definidos, calcula a soma
-    if (produto.precosPorSabor) {
-        let precoTotal = 0;
-        saboresSelecionados.forEach(sabor => {
-            const precoSabor = produto.precosPorSabor[sabor];
-            if (precoSabor) {
-                precoTotal += precoSabor;
-            } else {
-                // Se não tem preço específico, usa o preço base
-                precoTotal += produto.preco;
-            }
-        });
-        return precoTotal;
-    }
-    
-    // Se não tem preços específicos, multiplica o preço base pela quantidade de sabores
-    return produto.preco * saboresSelecionados.length;
-}
-
-/**
- * Atualiza a exibição do preço no card do produto
- * @param {string} produtoNome - Nome do produto
- */
-function atualizarPrecoExibido(produtoNome) {
-    const sabores = obterSaboresSelecionados(produtoNome);
-    const precoCalculado = calcularPrecoComSabores(produtoNome, sabores);
-    
-    // Encontra o elemento de preço no card
-    const produtoCards = document.querySelectorAll('.produto-card');
-    produtoCards.forEach(card => {
-        const nomeElement = card.querySelector('.produto-nome');
-        if (nomeElement && nomeElement.textContent === produtoNome) {
-            const precoElement = card.querySelector('.produto-preco');
-            if (precoElement) {
-                const precoFormatado = precoCalculado.toFixed(2).replace('.', ',');
-                precoElement.textContent = precoFormatado;
-                
-                // Adiciona efeito visual de atualização
-                precoElement.style.transform = 'scale(1.1)';
-                precoElement.style.color = 'var(--gold-dark)';
-                setTimeout(() => {
-                    precoElement.style.transform = 'scale(1)';
-                    precoElement.style.color = '';
-                }, 300);
-            }
-        }
-    });
-}
-/**
- * Atualiza a visualização dos sabores escolhidos
- * @param {string} produtoNome - Nome do produto
- */
-function atualizarSaboresEscolhidos(produtoNome) {
-    const containerSelecionados = document.getElementById(`selecionados-${produtoNome.replace(/\s+/g, '-').toLowerCase()}`);
-    const listaSabores = containerSelecionados?.querySelector('.sabores-escolhidos-lista');
-    
-    if (!containerSelecionados || !listaSabores) return;
-    
-    const sabores = saboresSelecionados[produtoNome] || [];
-    
-    if (sabores.length === 0) {
-        containerSelecionados.style.display = 'none';
-        return;
-    }
-    
-    containerSelecionados.style.display = 'block';
-    
-    // Calcula o preço total
-    const precoTotal = calcularPrecoComSabores(produtoNome, sabores);
-    const produto = produtos.find(p => p.nome === produtoNome);
-    
-    // Cria HTML dos sabores com preços individuais se disponível
-    let saboresHTML = '';
-    if (produto && produto.precosPorSabor) {
-        saboresHTML = sabores.map(sabor => {
-            const precoSabor = produto.precosPorSabor[sabor] || produto.preco;
-            return `<span class="sabor-escolhido" data-preco="${precoSabor}">
-                ${escaparHTML(sabor)} 
-                <small class="sabor-preco">R$ ${precoSabor.toFixed(2).replace('.', ',')}</small>
-            </span>`;
-        }).join('');
-    } else {
-        saboresHTML = sabores.map(sabor => 
-            `<span class="sabor-escolhido">${escaparHTML(sabor)}</span>`
-        ).join('');
-    }
-    
-    listaSabores.innerHTML = saboresHTML;
-    
-    // Adiciona o total se há múltiplos sabores
-    if (sabores.length > 1) {
-        const totalElement = containerSelecionados.querySelector('.sabores-total') || 
-            document.createElement('div');
-        totalElement.className = 'sabores-total';
-        totalElement.innerHTML = `
-            <strong>Total: R$ ${precoTotal.toFixed(2).replace('.', ',')}</strong>
-        `;
-        
-        if (!containerSelecionados.querySelector('.sabores-total')) {
-            containerSelecionados.appendChild(totalElement);
-        }
-    } else {
-        // Remove o total se há apenas um sabor
-        const totalElement = containerSelecionados.querySelector('.sabores-total');
-        if (totalElement) {
-            totalElement.remove();
-        }
-    }
-}
-
-/**
- * Obtém os sabores selecionados para um produto
- * @param {string} produtoNome - Nome do produto
- * @returns {Array} - Array de sabores selecionados
- */
-function obterSaboresSelecionados(produtoNome) {
-    const produto = produtos.find(p => p.nome === produtoNome);
-    
-    // Se tem sabores selecionados, retorna eles
-    if (saboresSelecionados[produtoNome] && saboresSelecionados[produtoNome].length > 0) {
-        return saboresSelecionados[produtoNome];
-    }
-    
-    // Se o produto tem sabores, retorna o primeiro como padrão
-    if (produto && produto.sabores && produto.sabores.length > 0) {
-        return [produto.sabores[0]];
-    }
-    
-    // Se não tem sabores, retorna array vazio
-    return [];
-}
-
-/**
- * Obtém o sabor selecionado para um produto (compatibilidade com sistema antigo)
- * @param {string} produtoNome - Nome do produto
- * @returns {string} - Primeiro sabor selecionado ou null
- */
-function obterSaborSelecionado(produtoNome) {
-    const sabores = obterSaboresSelecionados(produtoNome);
-    return sabores.length > 0 ? sabores[0] : null;
-}
-
-/**
- * Adiciona produto ao carrinho com sabores selecionados
- * @param {string} produtoNome - Nome do produto
- * @param {number} produtoPreco - Preço base do produto (será recalculado se necessário)
- */
-function adicionarAoCarrinhoComSabor(produtoNome, produtoPreco) {
-    const produto = produtos.find(p => p.nome === produtoNome);
-    const sabores = obterSaboresSelecionados(produtoNome);
-    
-    if (produto && produto.personalizavel && sabores.length === 0) {
-        mostrarMensagemCarrinho('⚠️ Escolha pelo menos um sabor para este produto!');
-        return;
-    }
-    
-    // Calcula o preço real baseado nos sabores selecionados
-    const precoCalculado = calcularPrecoComSabores(produtoNome, sabores);
-    
-    let nomeCompleto;
-    if (sabores.length === 0) {
-        nomeCompleto = produtoNome;
-    } else if (sabores.length === 1) {
-        nomeCompleto = `${produtoNome} - ${sabores[0]}`;
-    } else {
-        nomeCompleto = `${produtoNome} - Mix (${sabores.join(', ')})`;
-    }
-    
-    // Verifica se o produto com essa combinação já está no carrinho
-    const produtoExistente = carrinho.find(item => item.nome === nomeCompleto);
+function adicionarAoCarrinho(produtoNome, produtoPreco) {
+    // Verifica se o produto já está no carrinho
+    const produtoExistente = carrinho.find(item => item.nome === produtoNome);
     
     if (produtoExistente) {
         // Se já existe, aumenta a quantidade
         produtoExistente.quantidade += 1;
     } else {
-        // Se não existe, adiciona novo item com preço calculado
+        // Se não existe, adiciona novo item
         carrinho.push({
-            nome: nomeCompleto,
-            nomeProduto: produtoNome,
-            sabores: [...sabores],
-            preco: precoCalculado, // Usa o preço calculado
-            quantidade: 1,
-            id: Date.now() + Math.random()
+            nome: produtoNome,
+            preco: produtoPreco,
+            quantidade: 1
         });
     }
     
     // Atualiza o contador do carrinho
     atualizarContadorCarrinho();
     
-    // Mostra mensagem de confirmação com preço
-    const mensagem = sabores.length > 0 ? 
-        `${produtoNome} (${sabores.join(', ')}) - R$ ${precoCalculado.toFixed(2).replace('.', ',')} adicionado ao carrinho! 🛒` : 
-        `${produtoNome} - R$ ${precoCalculado.toFixed(2).replace('.', ',')} adicionado ao carrinho! 🛒`;
-    mostrarMensagemCarrinho(mensagem);
+    // Mostra mensagem de confirmação
+    mostrarMensagemCarrinho(`${produtoNome} adicionado ao carrinho! 🛒`);
     
-    // Mostra notificação se disponível
-    notifications.showCartUpdate(nomeCompleto);
-    
-    // Track analytics
-    analytics.trackEvent('add_to_cart', {
-        product_name: produtoNome,
-        flavors: sabores,
-        is_customizable: produto?.personalizavel || false,
-        base_price: produtoPreco,
-        calculated_price: precoCalculado,
-        cart_size: carrinho.length
-    });
-    
-    // Salva no localStorage e cache
+    // Salva no localStorage
     salvarCarrinho();
-    cacheManager.saveToCache('carrinho', carrinho);
-}
-
-/**
- * Abre modal de compra com sabores selecionados
- * @param {string} produtoNome - Nome do produto
- * @param {number} produtoPreco - Preço base do produto (será recalculado se necessário)
- */
-function abrirModalCompraComSabor(produtoNome, produtoPreco) {
-    const produto = produtos.find(p => p.nome === produtoNome);
-    const sabores = obterSaboresSelecionados(produtoNome);
-    
-    if (produto && produto.personalizavel && sabores.length === 0) {
-        mostrarMensagemCarrinho('⚠️ Escolha pelo menos um sabor para este produto!');
-        return;
-    }
-    
-    // Calcula o preço real baseado nos sabores selecionados
-    const precoCalculado = calcularPrecoComSabores(produtoNome, sabores);
-    
-    let nomeCompleto;
-    if (sabores.length === 0) {
-        nomeCompleto = produtoNome;
-    } else if (sabores.length === 1) {
-        nomeCompleto = `${produtoNome} - ${sabores[0]}`;
-    } else {
-        nomeCompleto = `${produtoNome} - Mix (${sabores.join(', ')})`;
-    }
-    
-    produtoSelecionado = {
-        nome: nomeCompleto,
-        nomeProduto: produtoNome,
-        sabores: [...sabores],
-        preco: precoCalculado // Usa o preço calculado
-    };
-    
-    // Atualiza informações do produto no modal
-    const modalProdutoInfo = document.getElementById('modalProdutoInfo');
-    if (modalProdutoInfo) {
-        let infoHTML = `<strong>${nomeCompleto}</strong> - R$ ${precoCalculado.toFixed(2).replace('.', ',')}`;
-        
-        // Se há múltiplos sabores, mostra o detalhamento
-        if (sabores.length > 1 && produto && produto.precosPorSabor) {
-            infoHTML += `<div style="margin-top: 10px; font-size: 0.9rem; color: var(--dark-soft);">`;
-            infoHTML += `<strong>Detalhamento:</strong><br>`;
-            sabores.forEach(sabor => {
-                const precoSabor = produto.precosPorSabor[sabor] || produto.preco;
-                infoHTML += `• ${sabor}: R$ ${precoSabor.toFixed(2).replace('.', ',')}<br>`;
-            });
-            infoHTML += `</div>`;
-        }
-        
-        modalProdutoInfo.innerHTML = infoHTML;
-    }
-    
-    // Limpa o formulário
-    const form = document.getElementById('formCompra');
-    if (form) {
-        form.reset();
-        const mensagens = form.querySelectorAll('.form-message');
-        mensagens.forEach(msg => msg.remove());
-    }
-    
-    // Abre o modal
-    const modal = document.getElementById('modalCompra');
-    if (modal) {
-        modal.classList.add('show');
-        document.body.style.overflow = 'hidden';
-        
-        setTimeout(() => {
-            const cepInput = document.getElementById('cep');
-            if (cepInput) {
-                cepInput.focus();
-            }
-        }, 300);
-    }
 }
 
 /**
@@ -1340,22 +705,11 @@ function calcularTotalCarrinho() {
  * Abre o modal do carrinho
  */
 function abrirModalCarrinho() {
-    console.log('🛒 Abrindo modal do carrinho...');
     const modal = document.getElementById('modalCarrinho');
-    
     if (modal) {
-        // Força a atualização do conteúdo
         atualizarModalCarrinho();
-        
-        // Adiciona a classe show
         modal.classList.add('show');
-        
-        // Bloqueia o scroll do body
         document.body.style.overflow = 'hidden';
-        
-        console.log('✅ Modal do carrinho aberto!');
-    } else {
-        console.error('❌ Modal do carrinho não encontrado!');
     }
 }
 
@@ -1374,21 +728,11 @@ function fecharModalCarrinho() {
  * Atualiza o conteúdo do modal do carrinho
  */
 function atualizarModalCarrinho() {
-    console.log('🔄 Atualizando conteúdo do modal do carrinho...');
     const carrinhoItens = document.getElementById('carrinhoItens');
     const carrinhoTotal = document.getElementById('carrinhoTotal');
     const btnFinalizarCarrinho = document.getElementById('btnFinalizarCarrinho');
     
-    console.log('Elementos encontrados:', {
-        carrinhoItens: !!carrinhoItens,
-        carrinhoTotal: !!carrinhoTotal,
-        btnFinalizarCarrinho: !!btnFinalizarCarrinho
-    });
-    
-    if (!carrinhoItens) {
-        console.error('❌ Elemento carrinhoItens não encontrado!');
-        return;
-    }
+    if (!carrinhoItens) return;
     
     if (carrinho.length === 0) {
         carrinhoItens.innerHTML = `
@@ -1407,24 +751,10 @@ function atualizarModalCarrinho() {
     carrinhoItens.innerHTML = carrinho.map(item => {
         const subtotal = (item.preco * item.quantidade).toFixed(2).replace('.', ',');
         const nomeEscapado = escaparHTML(item.nome).replace(/'/g, "\\'");
-        
-        // Trata tanto o sistema antigo (sabor) quanto o novo (sabores)
-        let saboresDisplay = '';
-        if (item.sabores && Array.isArray(item.sabores) && item.sabores.length > 0) {
-            // Sistema novo com múltiplos sabores
-            saboresDisplay = `<div class="item-sabores">${item.sabores.map(sabor => 
-                `<span class="item-sabor-tag">${escaparHTML(sabor)}</span>`
-            ).join('')}</div>`;
-        } else if (item.sabor) {
-            // Sistema antigo com um sabor
-            saboresDisplay = `<div class="item-sabores"><span class="item-sabor-tag">${escaparHTML(item.sabor)}</span></div>`;
-        }
-        
         return `
             <div class="carrinho-item">
                 <div class="carrinho-item-info">
-                    <h4 class="carrinho-item-nome">${escaparHTML(item.nomeProduto || item.nome)}</h4>
-                    ${saboresDisplay}
+                    <h4 class="carrinho-item-nome">${escaparHTML(item.nome)}</h4>
                     <p class="carrinho-item-preco">R$ ${item.preco.toFixed(2).replace('.', ',')} cada</p>
                 </div>
                 <div class="carrinho-item-controles">
@@ -1481,6 +811,29 @@ function mostrarMensagemCarrinho(mensagem) {
             mensagemEl.remove();
         }, 300);
     }, 3000);
+}
+
+/**
+ * Salva o carrinho no localStorage
+ */
+function salvarCarrinho() {
+    localStorage.setItem('carrinhoFlorChocolate', JSON.stringify(carrinho));
+}
+
+/**
+ * Carrega o carrinho do localStorage
+ */
+function carregarCarrinho() {
+    const carrinhoSalvo = localStorage.getItem('carrinhoFlorChocolate');
+    if (carrinhoSalvo) {
+        try {
+            carrinho = JSON.parse(carrinhoSalvo);
+            atualizarContadorCarrinho();
+        } catch (e) {
+            console.error('Erro ao carregar carrinho:', e);
+            carrinho = [];
+        }
+    }
 }
 
 /**
@@ -1752,65 +1105,21 @@ function enviarParaWhatsApp(event) {
     }
     
     // Monta mensagem para WhatsApp
-    let mensagem = `🌺 *PEDIDO - ${CONFIG.businessName}*\n\n`;
+    let mensagem = `🌺 *PEDIDO - Flor de Chocolate*\n\n`;
     
     // Se for compra do carrinho, lista todos os produtos
     if (produtoSelecionado.isCarrinho) {
         mensagem += `*Produtos:*\n`;
         carrinho.forEach((item, index) => {
             const subtotal = (item.preco * item.quantidade).toFixed(2).replace('.', ',');
-            const nomeProduto = item.nomeProduto || item.nome;
-            
-            // Trata sabores (novo sistema com array ou antigo com string)
-            let saboresTexto = '';
-            if (item.sabores && Array.isArray(item.sabores) && item.sabores.length > 0) {
-                if (item.sabores.length === 1) {
-                    saboresTexto = ` - ${item.sabores[0]}`;
-                } else {
-                    saboresTexto = ` - Mix (${item.sabores.join(', ')})`;
-                }
-            } else if (item.sabor) {
-                saboresTexto = ` - ${item.sabor}`;
-            }
-            
-            mensagem += `${index + 1}. ${nomeProduto}${saboresTexto} (${item.quantidade}x)\n`;
+            mensagem += `${index + 1}. ${item.nome} (${item.quantidade}x)\n`;
             mensagem += `   R$ ${item.preco.toFixed(2).replace('.', ',')} cada = R$ ${subtotal}\n\n`;
         });
         mensagem += `*Total:* R$ ${produtoSelecionado.preco.toFixed(2).replace('.', ',')}\n\n`;
-        
-        // Track analytics para carrinho
-        analytics.trackEvent('checkout_cart', {
-            total_items: carrinho.length,
-            total_value: produtoSelecionado.preco,
-            products: carrinho.map(item => ({
-                name: item.nomeProduto || item.nome,
-                flavors: item.sabores || (item.sabor ? [item.sabor] : [])
-            }))
-        });
     } else {
         // Compra de produto único
-        const nomeProduto = produtoSelecionado.nomeProduto || produtoSelecionado.nome;
-        let saboresTexto = '';
-        
-        if (produtoSelecionado.sabores && Array.isArray(produtoSelecionado.sabores) && produtoSelecionado.sabores.length > 0) {
-            if (produtoSelecionado.sabores.length === 1) {
-                saboresTexto = ` - ${produtoSelecionado.sabores[0]}`;
-            } else {
-                saboresTexto = ` - Mix (${produtoSelecionado.sabores.join(', ')})`;
-            }
-        } else if (produtoSelecionado.sabor) {
-            saboresTexto = ` - ${produtoSelecionado.sabor}`;
-        }
-        
-        mensagem += `*Produto:*\n${nomeProduto}${saboresTexto}\n`;
+        mensagem += `*Produto:*\n${produtoSelecionado.nome}\n`;
         mensagem += `*Preço:* R$ ${produtoSelecionado.preco.toFixed(2).replace('.', ',')}\n\n`;
-        
-        // Track analytics para produto único
-        analytics.trackEvent('checkout_single', {
-            product_name: nomeProduto,
-            flavors: produtoSelecionado.sabores || (produtoSelecionado.sabor ? [produtoSelecionado.sabor] : []),
-            product_price: produtoSelecionado.preco
-        });
     }
     
     mensagem += `*Endereço de Entrega:*\n`;
@@ -1822,26 +1131,15 @@ function enviarParaWhatsApp(event) {
         mensagem += `*Observações:*\n${observacoes}\n\n`;
     }
     
-    mensagem += `Gostaria de confirmar este pedido! 🍫🌺\n\n`;
-    mensagem += `_Pedido feito através do site ${CONFIG.businessName}_`;
+    mensagem += `Gostaria de confirmar este pedido! 🍫🌺`;
 
     // Formata número do WhatsApp
-    const whatsappNumero = formatarWhatsApp(CONFIG.whatsappNumber);
+    const whatsappNumero = formatarWhatsApp('+55 12 99221-6807');
     const mensagemEncoded = encodeURIComponent(mensagem);
     const linkWhatsApp = `https://wa.me/${whatsappNumero}?text=${mensagemEncoded}`;
     
-    // Track analytics
-    analytics.trackEvent('whatsapp_redirect', {
-        context: 'checkout',
-        product_type: produtoSelecionado.isCarrinho ? 'cart' : 'single'
-    });
-    
     // Abre WhatsApp
     window.open(linkWhatsApp, '_blank');
-    
-    // Mostra notificação de confirmação
-    const productName = produtoSelecionado.isCarrinho ? 'Carrinho' : produtoSelecionado.nome;
-    notifications.showOrderConfirmation(productName);
     
     // Limpa o carrinho se foi compra do carrinho
     if (produtoSelecionado.isCarrinho) {
@@ -1878,7 +1176,6 @@ function criarCardProduto(produto) {
                 alt="${produto.nome}" 
                 class="produto-img" 
                 onerror="this.onerror=null; this.style.display='none'; const emoji = this.nextElementSibling; if(emoji) emoji.style.display='flex';" 
-                loading="lazy"
             />
             <span class="produto-emoji" style="display:none;">${produto.emoji || '🍰'}</span>
         `;
@@ -1894,57 +1191,6 @@ function criarCardProduto(produto) {
     const nomeEscapado = escaparHTML(produto.nome).replace(/'/g, "\\'");
     const descricaoEscapada = escaparHTML(produto.descricao);
     
-    // Cria seletor de sabores se o produto tiver sabores
-    let seletorSaboresHTML = '';
-    if (produto.sabores && produto.sabores.length > 0) {
-        if (produto.personalizavel) {
-            // Sistema de bolhas para produtos personalizáveis
-            const saboresBolhas = produto.sabores.map(sabor => 
-                `<button type="button" class="sabor-bolha" data-sabor="${escaparHTML(sabor)}" onclick="toggleSaborBolha('${nomeEscapado}', '${escaparHTML(sabor)}', this)">
-                    ${escaparHTML(sabor)}
-                </button>`
-            ).join('');
-            
-            seletorSaboresHTML = `
-                <div class="seletor-sabores-container personalizavel">
-                    <label class="sabor-label">
-                        🎨 Monte sua combinação perfeita:
-                    </label>
-                    <div class="sabores-instrucao">
-                        <small>Clique nos sabores que desejar para criar sua mistura única!</small>
-                    </div>
-                    <div class="sabores-bolhas" id="sabores-${nomeEscapado.replace(/\s+/g, '-').toLowerCase()}">
-                        ${saboresBolhas}
-                    </div>
-                    <div class="sabores-selecionados" id="selecionados-${nomeEscapado.replace(/\s+/g, '-').toLowerCase()}" style="display: none;">
-                        <small class="sabores-escolhidos-label">✨ Sua combinação escolhida:</small>
-                        <div class="sabores-escolhidos-lista"></div>
-                    </div>
-                </div>
-            `;
-        } else {
-            // Sistema de dropdown tradicional
-            const saboresOptions = produto.sabores.map(sabor => 
-                `<option value="${escaparHTML(sabor)}">${escaparHTML(sabor)}</option>`
-            ).join('');
-            
-            seletorSaboresHTML = `
-                <div class="seletor-sabores-container">
-                    <label for="sabor-${nomeEscapado.replace(/\s+/g, '-').toLowerCase()}" class="sabor-label">
-                        Escolha o sabor:
-                    </label>
-                    <select 
-                        id="sabor-${nomeEscapado.replace(/\s+/g, '-').toLowerCase()}" 
-                        class="select-sabor"
-                        onchange="atualizarSaborSelecionado('${nomeEscapado}', this.value)"
-                    >
-                        ${saboresOptions}
-                    </select>
-                </div>
-            `;
-        }
-    }
-    
     // Monta o HTML completo do card
     card.innerHTML = `
         <div class="produto-imagem">
@@ -1954,13 +1200,12 @@ function criarCardProduto(produto) {
         <div class="produto-info">
             <h3 class="produto-nome">${produto.nome}</h3>
             <p class="produto-descricao">${produto.descricao}</p>
-            ${seletorSaboresHTML}
             <div class="produto-preco">${precoFormatado}</div>
             <div class="produto-botoes">
-                <button class="btn-comprar" onclick="abrirModalCompraComSabor('${nomeEscapado}', ${produto.preco})">
+                <button class="btn-comprar" onclick="abrirModalCompra('${nomeEscapado}', ${produto.preco})">
                     Comprar Agora
                 </button>
-                <button class="btn-carrinho" onclick="adicionarAoCarrinhoComSabor('${nomeEscapado}', ${produto.preco})">
+                <button class="btn-carrinho" onclick="adicionarAoCarrinho('${nomeEscapado}', ${produto.preco})">
                     🛒 Adicionar ao Carrinho
                 </button>
             </div>
@@ -2308,19 +1553,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // Renderiza os produtos
     renderizarProdutos();
     
-    // Configura botão do carrinho com event listener alternativo
-    const btnCarrinho = document.getElementById('btnCarrinho');
-    if (btnCarrinho) {
-        console.log('✅ Botão do carrinho encontrado, adicionando event listener...');
-        btnCarrinho.addEventListener('click', function(e) {
-            e.preventDefault();
-            console.log('🖱️ Event listener do carrinho ativado!');
-            abrirModalCarrinho();
-        });
-    } else {
-        console.error('❌ Botão do carrinho não encontrado!');
-    }
-    
     // Configura animações ao scroll
     setTimeout(() => {
         configurarAnimacoesScroll();
@@ -2416,22 +1648,21 @@ document.addEventListener('DOMContentLoaded', () => {
     if (formAdicionarProduto) {
         formAdicionarProduto.addEventListener('submit', function(e) {
             e.preventDefault();
-            const nome = document.getElementById('produtoNome').value.trim();
-            const preco = parseFloat(document.getElementById('produtoPreco').value);
-            const descricao = document.getElementById('produtoDescricao').value.trim();
-            const sabores = document.getElementById('produtoSabores').value.trim();
-            const personalizavel = document.getElementById('produtoPersonalizavel').checked;
-            const fileInput = document.getElementById('produtoImagem');
             
-            if (!nome || !descricao || isNaN(preco) || preco <= 0) {
-                mostrarMensagem('Por favor, preencha todos os campos obrigatórios!', 'error');
+            // Verifica se o admin está logado
+            if (!adminLogado) {
+                mostrarMensagemCarrinho('Você precisa estar logado como administrador! 🔐');
                 return;
             }
             
-            // Processa os sabores
-            let saboresArray = [];
-            if (sabores) {
-                saboresArray = sabores.split(',').map(sabor => sabor.trim()).filter(sabor => sabor.length > 0);
+            const nome = document.getElementById('produtoNome').value.trim();
+            const preco = parseFloat(document.getElementById('produtoPreco').value);
+            const descricao = document.getElementById('produtoDescricao').value.trim();
+            const fileInput = document.getElementById('produtoImagem');
+            
+            if (!nome || !descricao || isNaN(preco) || preco <= 0) {
+                mostrarMensagemCarrinho('Por favor, preencha todos os campos obrigatórios! ❌');
+                return;
             }
             
             // Processa a imagem se houver
@@ -2442,8 +1673,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         nome,
                         preco,
                         descricao,
-                        sabores: saboresArray,
-                        personalizavel: personalizavel,
                         imagem: e.target.result // Salva como data URL (base64)
                     });
                     
@@ -2467,8 +1696,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     nome,
                     preco,
                     descricao,
-                    sabores: saboresArray,
-                    personalizavel: personalizavel,
                     imagem: null
                 });
                 
