@@ -3,6 +3,7 @@
    Paleta: Rosa claro, Marrom chocolate, Bege e Pastéis
    Tipografia amigável e elegante
    Layout moderno, responsivo e bem espaçado
+   Otimizado para performance e acessibilidade
    ============================================ */
 
 /* ============================================
@@ -12,6 +13,34 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+}
+
+/* Melhorias de performance */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+/* Reduz motion para usuários que preferem */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* Melhora contraste para usuários com preferência de alto contraste */
+@media (prefers-contrast: high) {
+    :root {
+        --shadow-soft: rgba(0, 0, 0, 0.3);
+        --shadow-medium: rgba(0, 0, 0, 0.4);
+        --shadow-strong: rgba(0, 0, 0, 0.5);
+    }
 }
 
 /* ============================================
@@ -81,6 +110,46 @@ body {
     overflow-x: hidden;
     line-height: 1.7;
     scroll-behavior: smooth;
+    /* Melhorias de performance */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    /* Melhorias de acessibilidade */
+    min-height: 100vh;
+}
+
+/* Foco visível para navegação por teclado */
+*:focus {
+    outline: 3px solid var(--gold-medium);
+    outline-offset: 2px;
+}
+
+/* Remove outline apenas para mouse */
+*:focus:not(:focus-visible) {
+    outline: none;
+}
+
+/* Melhora legibilidade de texto */
+p, li, span {
+    max-width: 70ch;
+}
+
+/* Skip link para acessibilidade */
+.skip-link {
+    position: absolute;
+    top: -40px;
+    left: 6px;
+    background: var(--chocolate-dark);
+    color: var(--bege-light);
+    padding: 8px;
+    text-decoration: none;
+    border-radius: 4px;
+    z-index: 10000;
+    font-weight: 600;
+}
+
+.skip-link:focus {
+    top: 6px;
 }
 
 /* ============================================
@@ -97,7 +166,7 @@ body {
    ============================================ */
 .header {
     background: linear-gradient(135deg, var(--chocolate-dark) 0%, var(--chocolate-medium) 100%);
-    padding: 25px 0;
+    padding: 15px 0;
     box-shadow: 0 4px 20px var(--shadow-chocolate);
     position: sticky;
     top: 0;
@@ -108,17 +177,17 @@ body {
 }
 
 .header.scrolled {
-    padding: 15px 0;
+    padding: 10px 0;
     box-shadow: 0 2px 15px var(--shadow-chocolate);
 }
 
 .header.compact {
-    padding: 12px 0;
+    padding: 8px 0;
 }
 
 .header.compact .container {
     justify-content: center;
-    gap: 30px;
+    gap: 15px;
 }
 
 .header.compact .nav {
@@ -130,16 +199,18 @@ body {
     justify-content: space-between;
     align-items: center;
     flex-wrap: wrap;
-    gap: 20px;
+    gap: 15px;
     transition: all var(--transition-normal);
+    padding: 0 15px;
 }
 
 /* Logo */
 .logo {
     display: flex;
     align-items: center;
-    gap: 15px;
+    gap: 10px;
     transition: transform var(--transition-normal);
+    flex-shrink: 0;
 }
 
 .logo:hover {
@@ -147,7 +218,7 @@ body {
 }
 
 .logo-icon {
-    font-size: 3rem;
+    font-size: 2.5rem;
     animation: pulse 2s ease-in-out infinite;
     filter: 
         drop-shadow(0 0 10px rgba(255, 215, 0, 0.6))
@@ -174,7 +245,7 @@ body {
 
 .logo-text h1 {
     font-family: 'Playfair Display', serif;
-    font-size: 2.3rem;
+    font-size: 1.8rem;
     color: var(--bege-light);
     text-shadow: 
         2px 2px 6px rgba(0, 0, 0, 0.3),
@@ -188,22 +259,22 @@ body {
 }
 
 .header.compact .logo-text h1 {
-    font-size: 1.8rem;
+    font-size: 1.5rem;
 }
 
 .header.compact .logo-icon {
-    font-size: 2.5rem;
+    font-size: 2rem;
 }
 
 .header.compact .tagline {
-    font-size: 0.8rem;
+    font-size: 0.7rem;
 }
 
 .tagline {
-    font-size: 0.95rem;
+    font-size: 0.8rem;
     color: var(--rose-light);
     font-weight: 300;
-    letter-spacing: 2px;
+    letter-spacing: 1px;
     text-transform: uppercase;
     opacity: 0.9;
 }
@@ -212,14 +283,15 @@ body {
 .header-social {
     display: flex;
     align-items: center;
-    gap: 15px;
-    margin: 0 20px;
+    gap: 10px;
+    margin: 0 10px;
     transition: all var(--transition-normal);
+    flex-shrink: 0;
 }
 
 .header.compact .header-social {
     margin: 0;
-    gap: 10px;
+    gap: 8px;
 }
 
 /* Botão de Login no Header */
@@ -228,16 +300,16 @@ body {
     background: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.1) 100%);
     border: 2px solid rgba(255, 255, 255, 0.2);
     border-radius: 25px;
-    padding: 8px 15px;
+    padding: 6px 12px;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     cursor: pointer;
     transition: all var(--transition-normal);
     backdrop-filter: blur(10px);
     color: var(--bege-light);
     font-weight: 500;
-    font-size: 0.9rem;
+    font-size: 0.8rem;
 }
 
 .header-login:hover {
@@ -247,11 +319,11 @@ body {
 }
 
 .login-icon {
-    font-size: 1.2rem;
+    font-size: 1rem;
 }
 
 .login-text {
-    font-size: 0.9rem;
+    font-size: 0.8rem;
 }
 
 /* Botão Admin Escondido */
@@ -259,12 +331,12 @@ body {
     position: fixed;
     top: 10px;
     right: 10px;
-    width: 35px;
-    height: 35px;
+    width: 30px;
+    height: 30px;
     background: rgba(93, 64, 55, 0.3);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 50%;
-    font-size: 1rem;
+    font-size: 0.9rem;
     cursor: pointer;
     z-index: 9999;
     opacity: 0.3;
@@ -287,8 +359,8 @@ body {
     background: linear-gradient(135deg, rgba(255, 215, 0, 0.2) 0%, rgba(255, 193, 7, 0.2) 100%);
     border: 2px solid rgba(255, 255, 255, 0.2);
     border-radius: 50%;
-    width: 50px;
-    height: 50px;
+    width: 45px;
+    height: 45px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -296,6 +368,7 @@ body {
     transition: all var(--transition-normal);
     backdrop-filter: blur(10px);
     padding: 0;
+    flex-shrink: 0;
 }
 
 .header-carrinho:hover {
@@ -306,7 +379,7 @@ body {
 }
 
 .carrinho-icon {
-    font-size: 1.8rem;
+    font-size: 1.5rem;
     filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
 }
 
@@ -317,12 +390,12 @@ body {
     background: linear-gradient(135deg, var(--rose-medium) 0%, var(--chocolate-medium) 100%);
     color: var(--white);
     border-radius: 50%;
-    width: 24px;
-    height: 24px;
+    width: 20px;
+    height: 20px;
     display: none;
     align-items: center;
     justify-content: center;
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     font-weight: 700;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
     border: 2px solid var(--white);
@@ -332,15 +405,16 @@ body {
 .header-instagram {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     color: var(--bege-light);
     text-decoration: none;
-    padding: 10px 20px;
+    padding: 8px 15px;
     background: linear-gradient(135deg, rgba(225, 48, 108, 0.2) 0%, rgba(131, 58, 180, 0.2) 100%);
     border-radius: 25px;
     border: 2px solid rgba(255, 255, 255, 0.2);
     transition: all var(--transition-normal);
     backdrop-filter: blur(10px);
+    flex-shrink: 0;
 }
 
 .header-instagram:hover {
@@ -351,14 +425,14 @@ body {
 }
 
 .instagram-image {
-    width: 50px;
-    height: 50px;
+    width: 40px;
+    height: 40px;
     object-fit: contain;
-    border-radius: 10px;
+    border-radius: 8px;
     filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.3));
     transition: all var(--transition-normal);
     background: rgba(255, 255, 255, 0.1);
-    padding: 4px;
+    padding: 3px;
     border: 2px solid rgba(255, 255, 255, 0.2);
 }
 
@@ -372,7 +446,7 @@ body {
 }
 
 .instagram-text {
-    font-size: 0.9rem;
+    font-size: 0.8rem;
     font-weight: 500;
     text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
 }
@@ -380,9 +454,10 @@ body {
 /* Navegação */
 .nav {
     display: flex;
-    gap: 35px;
+    gap: 20px;
     flex-wrap: wrap;
     transition: opacity var(--transition-normal), transform var(--transition-normal);
+    justify-content: center;
 }
 
 .header.compact .nav {
@@ -397,10 +472,10 @@ body {
     color: var(--bege-light);
     text-decoration: none;
     font-weight: 500;
-    font-size: 1rem;
+    font-size: 0.9rem;
     transition: all var(--transition-normal);
     position: relative;
-    padding: 8px 0;
+    padding: 6px 0;
     text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
 }
 
@@ -410,7 +485,7 @@ body {
     bottom: 0;
     left: 0;
     width: 0;
-    height: 3px;
+    height: 2px;
     background: var(--rose-light);
     border-radius: 2px;
     transition: width var(--transition-normal);
@@ -430,13 +505,13 @@ body {
    ============================================ */
 .hero {
     position: relative;
-    min-height: 90vh;
+    min-height: 70vh;
     display: flex;
     align-items: center;
     justify-content: center;
     background: linear-gradient(135deg, var(--bege-light) 0%, var(--rose-pastel) 50%, var(--pastel-peach) 100%);
     overflow: hidden;
-    padding: 60px 20px;
+    padding: 40px 15px;
 }
 
 /* Overlay Decorativo - Estilo Dourado */
@@ -461,13 +536,13 @@ body {
     text-align: center;
     color: var(--chocolate-dark);
     max-width: 850px;
-    padding: 40px;
+    padding: 20px;
 }
 
 .hero-title {
     font-family: 'Playfair Display', serif;
-    font-size: 4rem;
-    margin-bottom: 25px;
+    font-size: 2.5rem;
+    margin-bottom: 20px;
     color: var(--chocolate-dark);
     animation: fadeInUp 1s ease;
     font-weight: 700;
@@ -480,26 +555,25 @@ body {
     position: relative;
 }
 
-
 .hero-subtitle {
-    font-size: 1.4rem;
-    margin-bottom: 40px;
+    font-size: 1.1rem;
+    margin-bottom: 30px;
     font-weight: 300;
     color: var(--dark-soft);
     animation: fadeInUp 1.2s ease;
-    line-height: 1.8;
+    line-height: 1.6;
 }
 
 /* Botão Principal */
 .btn-primary {
     display: inline-block;
-    padding: 18px 45px;
+    padding: 15px 35px;
     background: linear-gradient(135deg, var(--chocolate-medium) 0%, var(--chocolate-dark) 100%);
     color: var(--bege-light);
     text-decoration: none;
     border-radius: 50px;
     font-weight: 600;
-    font-size: 1.15rem;
+    font-size: 1rem;
     box-shadow: 0 8px 25px var(--shadow-chocolate);
     transition: all var(--transition-normal);
     animation: fadeInUp 1.4s ease;
@@ -550,8 +624,8 @@ body {
 
 .floating-element {
     position: absolute;
-    font-size: 3.5rem;
-    opacity: 0.7;
+    font-size: 2.5rem;
+    opacity: 0.6;
     animation: float 10s ease-in-out infinite;
     filter: drop-shadow(0 4px 8px var(--gold-shadow)) drop-shadow(0 0 12px rgba(255, 215, 0, 0.4));
     text-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
@@ -564,40 +638,40 @@ body {
 }
 
 .element-1 {
-    top: 10%;
-    left: 8%;
+    top: 15%;
+    left: 10%;
     animation-delay: 0s;
     color: #FFD700;
     filter: drop-shadow(0 4px 8px rgba(255, 215, 0, 0.5)) drop-shadow(0 0 15px rgba(255, 215, 0, 0.6));
 }
 
 .element-2 {
-    top: 50%;
-    right: 10%;
+    top: 60%;
+    right: 15%;
     animation-delay: 2s;
     color: #FFFFFF;
     filter: drop-shadow(0 4px 8px rgba(255, 255, 255, 0.6)) drop-shadow(0 0 15px rgba(255, 255, 255, 0.5));
 }
 
 .element-3 {
-    bottom: 15%;
-    left: 12%;
+    bottom: 20%;
+    left: 15%;
     animation-delay: 4s;
     color: #FFD700;
     filter: drop-shadow(0 4px 8px rgba(255, 215, 0, 0.5)) drop-shadow(0 0 15px rgba(255, 215, 0, 0.6));
 }
 
 .element-4 {
-    top: 30%;
-    right: 20%;
+    top: 35%;
+    right: 25%;
     animation-delay: 6s;
     color: #FFFFFF;
     filter: drop-shadow(0 4px 8px rgba(255, 255, 255, 0.6)) drop-shadow(0 0 15px rgba(255, 255, 255, 0.5));
 }
 
 .element-5 {
-    top: 70%;
-    left: 25%;
+    top: 75%;
+    left: 30%;
     animation-delay: 8s;
     color: #FFD700;
     filter: drop-shadow(0 4px 8px rgba(255, 215, 0, 0.5)) drop-shadow(0 0 15px rgba(255, 215, 0, 0.6));
@@ -2943,36 +3017,51 @@ section {
 /* Mobile */
 @media (max-width: 768px) {
     .header {
-        padding: 20px 0;
+        padding: 12px 0;
     }
     
     .header .container {
         flex-direction: column;
-        gap: 20px;
+        gap: 12px;
+        padding: 0 10px;
     }
     
     .header.compact .container {
         flex-direction: row;
         justify-content: center;
-        gap: 15px;
+        gap: 10px;
     }
     
-    .logo h1 {
-        font-size: 1.8rem;
+    .logo {
+        gap: 8px;
+    }
+    
+    .logo-text h1 {
+        font-size: 1.6rem;
         text-align: center;
     }
     
-    .header.compact .logo h1 {
-        font-size: 1.5rem;
+    .logo-icon {
+        font-size: 2.2rem;
+    }
+    
+    .tagline {
+        font-size: 0.7rem;
+        letter-spacing: 1px;
+    }
+    
+    .header.compact .logo-text h1 {
+        font-size: 1.4rem;
     }
     
     .header.compact .logo-icon {
-        font-size: 2rem;
+        font-size: 1.8rem;
     }
     
     .header-social {
-        margin: 10px 0;
+        margin: 8px 0;
         order: 2;
+        gap: 8px;
     }
     
     .header.compact .header-social {
@@ -2980,49 +3069,272 @@ section {
         order: 0;
     }
     
-    .header-instagram {
-        padding: 8px 15px;
-    }
-    
-    .header.compact .header-instagram {
-        padding: 6px 12px;
-    }
-    
-    .header.compact .instagram-image {
+    .header-carrinho {
         width: 40px;
         height: 40px;
     }
     
+    .carrinho-icon {
+        font-size: 1.3rem;
+    }
+    
+    .carrinho-contador {
+        width: 18px;
+        height: 18px;
+        font-size: 0.65rem;
+    }
+    
+    .header-instagram {
+        padding: 6px 12px;
+    }
+    
+    .instagram-image {
+        width: 35px;
+        height: 35px;
+    }
+    
     .instagram-text {
-        font-size: 0.8rem;
+        font-size: 0.75rem;
     }
     
     .header.compact .instagram-text {
-        font-size: 0.75rem;
+        font-size: 0.7rem;
     }
     
     .nav {
         justify-content: center;
-        gap: 20px;
+        gap: 15px;
         order: 3;
+        width: 100%;
     }
     
     .nav a {
-        font-size: 0.95rem;
+        font-size: 0.85rem;
+        padding: 5px 0;
     }
     
     .hero {
-        min-height: 80vh;
-        padding: 40px 20px;
+        min-height: 65vh;
+        padding: 30px 15px;
     }
     
     .hero-content {
-        padding: 20px;
+        padding: 15px;
     }
     
     .hero-title {
-        font-size: 2.5rem;
+        font-size: 2rem;
+        margin-bottom: 15px;
+    }
+    
+    .hero-subtitle {
+        font-size: 1rem;
+        margin-bottom: 25px;
+        line-height: 1.5;
+    }
+    
+    .btn-primary {
+        padding: 12px 25px;
+        font-size: 0.9rem;
+    }
+    
+    .floating-element {
+        font-size: 2rem;
+        opacity: 0.5;
+    }
+    
+    section {
+        padding: 60px 0;
+    }
+    
+    .section-title {
+        font-size: 2rem;
+        margin-bottom: 15px;
+    }
+    
+    .section-subtitle {
+        font-size: 1rem;
+        line-height: 1.6;
+    }
+    
+    .title-decoration {
+        width: 80px;
+        height: 4px;
         margin-bottom: 20px;
+    }
+    
+    .produtos-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+        padding: 0 10px;
+    }
+    
+    .produto-card {
+        max-width: 100%;
+        margin: 0 auto;
+    }
+    
+    .produto-imagem {
+        height: 220px;
+    }
+    
+    .produto-info {
+        padding: 20px;
+    }
+    
+    .produto-nome {
+        font-size: 1.4rem;
+        margin-bottom: 10px;
+    }
+    
+    .produto-descricao {
+        font-size: 0.9rem;
+        margin-bottom: 15px;
+    }
+    
+    .produto-preco {
+        font-size: 1.6rem;
+        margin-bottom: 20px;
+    }
+    
+    .btn-comprar, .btn-carrinho {
+        padding: 12px;
+        font-size: 0.9rem;
+    }
+    
+    .sobre-content {
+        grid-template-columns: 1fr;
+        gap: 40px;
+    }
+    
+    .sobre-text {
+        font-size: 1rem;
+        line-height: 1.8;
+    }
+    
+    .feature {
+        padding: 25px 20px;
+    }
+    
+    .feature-icon {
+        font-size: 2.5rem;
+        margin-bottom: 15px;
+    }
+    
+    .feature h3 {
+        font-size: 1.3rem;
+        margin-bottom: 10px;
+    }
+    
+    .feature p {
+        font-size: 0.9rem;
+    }
+    
+    .promocoes-grid {
+        grid-template-columns: 1fr;
+        gap: 25px;
+        padding: 0 10px;
+    }
+    
+    .promocao-imagem {
+        height: 180px;
+    }
+    
+    .promocao-emoji {
+        font-size: 4rem;
+    }
+    
+    .promocao-info {
+        padding: 20px;
+    }
+    
+    .promocao-nome {
+        font-size: 1.3rem;
+        margin-bottom: 10px;
+    }
+    
+    .promocao-descricao {
+        font-size: 0.85rem;
+        margin-bottom: 15px;
+    }
+    
+    .promocao-preco {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 5px;
+        margin-bottom: 15px;
+    }
+    
+    .preco-original {
+        font-size: 1rem;
+    }
+    
+    .preco-promocao {
+        font-size: 1.5rem;
+    }
+    
+    .contato-text {
+        font-size: 1.1rem;
+        margin-bottom: 15px;
+    }
+    
+    .contato-text-destaque {
+        font-size: 1.2rem;
+        margin: 20px 0 15px;
+        padding: 15px;
+    }
+    
+    .contato-buttons {
+        flex-direction: column;
+        gap: 15px;
+        margin-top: 25px;
+    }
+    
+    .btn-whatsapp, .btn-instagram {
+        padding: 15px 35px;
+        font-size: 1.1rem;
+        width: 100%;
+        max-width: 300px;
+        margin: 0 auto;
+    }
+    
+    .whatsapp-icon, .instagram-icon {
+        font-size: 1.5rem;
+    }
+    
+    .footer {
+        padding: 40px 0 20px;
+    }
+    
+    .footer-content {
+        grid-template-columns: 1fr;
+        gap: 30px;
+        text-align: center;
+    }
+    
+    .footer-section h3,
+    .footer-section h4 {
+        font-size: 1.2rem;
+        margin-bottom: 15px;
+    }
+    
+    .footer-section p {
+        font-size: 0.9rem;
+    }
+    
+    .social-links {
+        flex-direction: row;
+        justify-content: center;
+        gap: 20px;
+    }
+    
+    .footer-bottom {
+        padding-top: 20px;
+        font-size: 0.85rem;
+    }
+    
+    .footer-credits {
+        font-size: 0.8rem;
     }
     
     .hero-subtitle {
@@ -3125,6 +3437,256 @@ section {
     /* Carrinho responsivo */
     .modal-carrinho {
         max-width: 100%;
+        width: 100%;
+        right: 0;
+    }
+    
+    .modal-carrinho-content {
+        border-left: none;
+        border-radius: 0;
+    }
+    
+    .modal-carrinho-header {
+        padding: 20px 20px 15px;
+    }
+    
+    .modal-carrinho-header h2 {
+        font-size: 1.5rem;
+    }
+    
+    .carrinho-itens {
+        padding: 15px;
+    }
+    
+    .carrinho-item {
+        flex-wrap: wrap;
+        padding: 15px;
+        gap: 10px;
+    }
+    
+    .carrinho-item-info {
+        flex: 1;
+        min-width: 200px;
+    }
+    
+    .carrinho-item-nome {
+        font-size: 1rem;
+    }
+    
+    .carrinho-item-preco {
+        font-size: 0.85rem;
+    }
+    
+    .carrinho-item-controles {
+        padding: 4px 8px;
+    }
+    
+    .btn-quantidade {
+        width: 25px;
+        height: 25px;
+        font-size: 1rem;
+    }
+    
+    .carrinho-item-quantidade {
+        font-size: 1rem;
+        min-width: 25px;
+    }
+    
+    .carrinho-item-subtotal {
+        font-size: 1rem;
+        min-width: 80px;
+    }
+    
+    .carrinho-footer {
+        padding: 15px 20px;
+    }
+    
+    .carrinho-total {
+        padding: 12px;
+        margin-bottom: 15px;
+    }
+    
+    .carrinho-total strong {
+        font-size: 1.1rem;
+    }
+    
+    .carrinho-total-valor {
+        font-size: 1.5rem;
+    }
+    
+    .carrinho-acoes {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .btn-limpar-carrinho,
+    .btn-finalizar-carrinho {
+        padding: 12px;
+        font-size: 0.9rem;
+    }
+    
+    /* Modal de compra responsivo */
+    .modal-compra-content {
+        max-width: 95%;
+        padding: 25px;
+        margin: 10px;
+    }
+    
+    .modal-compra-header h2 {
+        font-size: 1.8rem;
+    }
+    
+    .modal-produto-info {
+        font-size: 1rem;
+        padding: 12px;
+    }
+    
+    .form-compra {
+        gap: 15px;
+    }
+    
+    .form-group input,
+    .form-group textarea {
+        padding: 10px 12px;
+        font-size: 0.9rem;
+    }
+    
+    .form-row {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+    
+    .cep-input-group {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .btn-buscar-cep {
+        padding: 10px 15px;
+        font-size: 0.85rem;
+    }
+    
+    .form-actions {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .btn-cancelar,
+    .btn-enviar-whatsapp {
+        padding: 12px;
+        font-size: 0.9rem;
+    }
+    
+    /* Modal de login responsivo */
+    .modal-login-content {
+        max-width: 95%;
+        padding: 25px;
+        margin: 10px;
+    }
+    
+    .modal-login-header h2 {
+        font-size: 1.6rem;
+    }
+    
+    .form-login {
+        gap: 15px;
+    }
+    
+    .form-login .form-group input {
+        padding: 10px 12px;
+        font-size: 0.9rem;
+    }
+    
+    .btn-login-submit {
+        padding: 12px;
+        font-size: 0.9rem;
+    }
+    
+    /* Welcome modal responsivo */
+    .welcome-modal-content {
+        padding: 25px;
+        max-width: 95%;
+        margin: 10px;
+    }
+    
+    .welcome-modal-content h2 {
+        font-size: 1.8rem;
+        margin-bottom: 15px;
+    }
+    
+    .welcome-modal-content p {
+        font-size: 1rem;
+        margin-bottom: 20px;
+    }
+    
+    /* Painel admin responsivo */
+    .painel-admin {
+        padding: 15px;
+    }
+    
+    .painel-admin-header {
+        flex-direction: column;
+        gap: 15px;
+        text-align: center;
+    }
+    
+    .painel-admin-header h2 {
+        font-size: 1.5rem;
+    }
+    
+    .painel-admin-stats {
+        justify-content: center;
+    }
+    
+    .painel-tabs {
+        flex-direction: column;
+        gap: 5px;
+    }
+    
+    .painel-tab {
+        padding: 10px;
+        font-size: 0.9rem;
+    }
+    
+    .form-admin {
+        gap: 15px;
+    }
+    
+    .form-row-admin {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+    
+    .form-admin .form-group input,
+    .form-admin .form-group textarea {
+        padding: 10px 12px;
+        font-size: 0.9rem;
+    }
+    
+    .btn-admin {
+        padding: 12px;
+        font-size: 0.9rem;
+    }
+    
+    .lista-produtos-admin {
+        gap: 15px;
+    }
+    
+    .produto-admin-item {
+        flex-direction: column;
+        gap: 15px;
+        padding: 15px;
+    }
+    
+    .produto-admin-acoes {
+        justify-content: center;
+        gap: 10px;
+    }
+    
+    .btn-editar,
+    .btn-excluir {
+        padding: 8px 15px;
+        font-size: 0.85rem;
     }
     
     .header-carrinho {
@@ -3270,3 +3832,967 @@ section {
         grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
     }
 }
+/* ============================================
+   CONFIGURAÇÕES GERAIS E CORES
+   ============================================ */
+   :root {
+    --chocolate-dark: #3e2723;
+    --chocolate-med: #5d4037;
+    --chocolate-light: #8d6e63;
+    --rosa-flor: #ff80ab;
+    --rosa-claro: #fce4ec;
+    --creme: #fffbf0;
+    --branco: #ffffff;
+    --shadow: 0 4px 15px rgba(0,0,0,0.1);
+    --font-principal: 'Poppins', sans-serif;
+    --font-titulo: 'Playfair Display', serif;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: var(--font-principal);
+    background-color: var(--creme);
+    color: var(--chocolate-dark);
+    line-height: 1.6;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+/* ============================================
+   ESTILIZAÇÃO DO PAINEL ADMIN E FORMULÁRIOS
+   ============================================ */
+.painel-admin {
+    background: var(--branco);
+    border-radius: 15px;
+    padding: 30px;
+    margin: 20px auto;
+    box-shadow: var(--shadow);
+}
+
+.form-admin {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.form-group label {
+    font-weight: 600;
+    margin-bottom: 5px;
+    color: var(--chocolate-med);
+}
+
+.form-admin input, 
+.form-admin textarea,
+.form-admin select {
+    padding: 12px;
+    border: 2px solid #eee;
+    border-radius: 8px;
+    font-family: inherit;
+    transition: 0.3s;
+}
+
+.form-admin input:focus {
+    border-color: var(--rosa-flor);
+    outline: none;
+}
+
+.form-row-admin {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 15px;
+}
+
+/* Estilo para a ajuda do campo de sabores */
+.form-help {
+    font-size: 0.85rem;
+    color: #777;
+    margin-top: 5px;
+}
+
+/* Botão de salvar no Admin */
+.btn-admin {
+    background-color: var(--chocolate-dark);
+    color: white;
+    padding: 15px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 1rem;
+    transition: 0.3s;
+}
+
+.btn-admin:hover {
+    background-color: var(--chocolate-light);
+}
+
+/* ============================================
+   PRODUTOS NA VITRINE (COM SELETOR DE SABOR)
+   ============================================ */
+.produtos-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 30px;
+    padding: 40px 0;
+}
+
+.produto-card {
+    background: white;
+    border-radius: 20px;
+    padding: 20px;
+    text-align: center;
+    box-shadow: var(--shadow);
+    transition: transform 0.3s;
+}
+
+.produto-card:hover {
+    transform: translateY(-10px);
+}
+
+/* Estilo do Seletor de Sabores no Card do Produto */
+.seletor-sabores-container {
+    margin: 15px 0;
+    text-align: left;
+}
+
+.seletor-sabores-container label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    display: block;
+    margin-bottom: 5px;
+}
+
+.select-sabor {
+    width: 100%;
+    padding: 8px;
+    border-radius: 5px;
+    border: 1px solid var(--chocolate-light);
+    background: white;
+    color: var(--chocolate-dark);
+}
+
+/* ============================================
+   SISTEMA DE BOLHAS DE SABORES MELHORADO
+   ============================================ */
+
+/* Seletor de Sabores Atualizado */
+.seletor-sabores-container {
+    margin: 25px 0;
+    padding: 20px;
+    background: linear-gradient(135deg, var(--bege-light) 0%, var(--rose-pastel) 100%);
+    border-radius: 20px;
+    border: 3px solid var(--chocolate-light);
+    transition: all var(--transition-normal);
+    box-shadow: 0 4px 15px rgba(93, 64, 55, 0.1);
+}
+
+.seletor-sabores-container:hover {
+    border-color: var(--gold-medium);
+    box-shadow: 0 6px 20px rgba(255, 215, 0, 0.2);
+    transform: translateY(-2px);
+}
+
+/* Container para produtos personalizáveis */
+.seletor-sabores-container.personalizavel {
+    background: linear-gradient(135deg, var(--gold-soft) 0%, var(--pastel-peach) 100%);
+    border-color: var(--gold-medium);
+    box-shadow: 0 6px 20px rgba(255, 215, 0, 0.3);
+    position: relative;
+    overflow: hidden;
+}
+
+.seletor-sabores-container.personalizavel::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(255, 215, 0, 0.1) 0%, transparent 70%);
+    animation: shimmer 4s infinite;
+    z-index: 0;
+}
+
+.seletor-sabores-container.personalizavel > * {
+    position: relative;
+    z-index: 1;
+}
+
+.seletor-sabores-container.personalizavel:hover {
+    box-shadow: 0 8px 25px rgba(255, 215, 0, 0.4);
+    transform: translateY(-3px);
+}
+
+.sabor-label {
+    font-weight: 700;
+    color: var(--chocolate-dark);
+    font-size: 1rem;
+    display: block;
+    margin-bottom: 15px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    text-align: center;
+    text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.5);
+}
+
+/* Sistema de bolhas para sabores */
+.sabores-bolhas {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 20px;
+    justify-content: center;
+    padding: 10px 0;
+}
+
+.sabor-bolha {
+    background: linear-gradient(135deg, var(--white) 0%, var(--bege-light) 100%);
+    color: var(--chocolate-dark);
+    border: 3px solid var(--chocolate-light);
+    border-radius: 30px;
+    padding: 12px 20px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-normal);
+    font-family: 'Poppins', sans-serif;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(93, 64, 55, 0.15);
+    min-width: 100px;
+    text-align: center;
+    user-select: none;
+}
+
+.sabor-bolha::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.3) 0%, rgba(255, 193, 7, 0.3) 100%);
+    transform: translate(-50%, -50%);
+    transition: width 0.5s, height 0.5s;
+    z-index: -1;
+}
+
+.sabor-bolha:hover {
+    border-color: var(--gold-medium);
+    background: linear-gradient(135deg, var(--gold-soft) 0%, var(--bege-light) 100%);
+    transform: translateY(-3px) scale(1.05);
+    box-shadow: 0 8px 20px rgba(255, 215, 0, 0.4);
+    color: var(--chocolate-dark);
+}
+
+.sabor-bolha:hover::before {
+    width: 120px;
+    height: 120px;
+}
+
+.sabor-bolha.selecionado {
+    background: linear-gradient(135deg, var(--gold-medium) 0%, var(--gold-dark) 100%);
+    color: var(--white);
+    border-color: var(--gold-dark);
+    box-shadow: 0 6px 20px rgba(255, 193, 7, 0.5);
+    transform: translateY(-3px) scale(1.08);
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.sabor-bolha.selecionado::after {
+    content: '✓';
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background: linear-gradient(135deg, var(--chocolate-dark) 0%, var(--chocolate-medium) 100%);
+    color: var(--white);
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    font-weight: 700;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4);
+    border: 2px solid var(--white);
+    animation: bounce 0.5s ease;
+}
+
+.sabor-bolha:active {
+    transform: translateY(-1px) scale(1.02);
+}
+
+/* Sabores escolhidos */
+.sabores-selecionados {
+    margin-top: 20px;
+    padding: 20px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.6) 100%);
+    border-radius: 15px;
+    border: 2px dashed var(--gold-medium);
+    backdrop-filter: blur(5px);
+}
+
+.sabores-escolhidos-label {
+    font-weight: 700;
+    color: var(--chocolate-dark);
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    display: block;
+    margin-bottom: 12px;
+    text-align: center;
+    text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.5);
+}
+
+.sabores-escolhidos-lista {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+}
+
+.sabor-escolhido {
+    background: linear-gradient(135deg, var(--chocolate-medium) 0%, var(--chocolate-dark) 100%);
+    color: var(--bege-light);
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    box-shadow: 0 3px 8px rgba(93, 64, 55, 0.4);
+    position: relative;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.sabor-escolhido::before {
+    content: '🌟';
+    margin-right: 6px;
+    font-size: 0.8rem;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
+}
+
+/* Tags de sabores no carrinho */
+.item-sabores {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin: 8px 0;
+}
+
+.item-sabor-tag {
+    background: linear-gradient(135deg, var(--gold-light) 0%, var(--gold-medium) 100%);
+    color: var(--chocolate-dark);
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    box-shadow: 0 2px 4px rgba(255, 193, 7, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+/* Sistema de dropdown tradicional melhorado */
+.select-sabor {
+    width: 100%;
+    padding: 15px 20px;
+    border: 3px solid var(--chocolate-light);
+    border-radius: 15px;
+    background: var(--white);
+    color: var(--chocolate-dark);
+    font-family: 'Poppins', sans-serif;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-normal);
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235D4037' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6,9 12,15 18,9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 15px center;
+    background-size: 24px;
+    padding-right: 50px;
+    box-shadow: 0 4px 12px rgba(93, 64, 55, 0.15);
+}
+
+.select-sabor:focus {
+    outline: none;
+    border-color: var(--gold-medium);
+    box-shadow: 0 0 0 4px rgba(255, 215, 0, 0.2);
+    transform: translateY(-2px);
+}
+
+.select-sabor:hover {
+    border-color: var(--gold-medium);
+    background: linear-gradient(135deg, var(--white) 0%, var(--bege-light) 100%);
+    transform: translateY(-1px);
+}
+
+.select-sabor option {
+    padding: 12px;
+    background: var(--white);
+    color: var(--chocolate-dark);
+    font-weight: 600;
+}
+
+.select-sabor option:hover,
+.select-sabor option:checked {
+    background: var(--gold-light);
+    color: var(--chocolate-dark);
+}
+
+/* Responsividade para bolhas */
+@media (max-width: 768px) {
+    .seletor-sabores-container {
+        margin: 20px 0;
+        padding: 15px;
+    }
+    
+    .sabores-bolhas {
+        gap: 10px;
+        padding: 8px 0;
+    }
+    
+    .sabor-bolha {
+        padding: 10px 16px;
+        font-size: 0.9rem;
+        min-width: 90px;
+    }
+    
+    .sabor-bolha.selecionado::after {
+        width: 20px;
+        height: 20px;
+        font-size: 0.7rem;
+        top: -6px;
+        right: -6px;
+    }
+    
+    .sabores-escolhidos-lista {
+        gap: 6px;
+    }
+    
+    .sabor-escolhido {
+        padding: 4px 10px;
+        font-size: 0.8rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .seletor-sabores-container {
+        margin: 15px 0;
+        padding: 12px;
+    }
+    
+    .sabor-label {
+        font-size: 0.95rem;
+        margin-bottom: 12px;
+    }
+    
+    .sabores-bolhas {
+        gap: 8px;
+        padding: 6px 0;
+    }
+    
+    .sabor-bolha {
+        padding: 8px 12px;
+        font-size: 0.85rem;
+        min-width: 80px;
+    }
+    
+    .sabores-selecionados {
+        padding: 15px;
+        margin-top: 15px;
+    }
+}
+/* Instrução para as bolhas */
+.sabores-instrucao {
+    text-align: center;
+    margin-bottom: 15px;
+}
+
+.sabores-instrucao small {
+    color: var(--chocolate-medium);
+    font-size: 0.9rem;
+    font-weight: 500;
+    font-style: italic;
+    background: rgba(255, 255, 255, 0.7);
+    padding: 8px 15px;
+    border-radius: 20px;
+    border: 1px solid rgba(255, 215, 0, 0.3);
+    display: inline-block;
+}
+
+/* ============================================
+   RESPONSIVIDADE MOBILE MELHORADA
+   ============================================ */
+
+/* Smartphones pequenos - Melhorias específicas */
+@media (max-width: 480px) {
+    /* Container geral */
+    .container {
+        padding: 0 10px;
+    }
+    
+    /* Header extra responsivo */
+    .header .container {
+        padding: 0 8px;
+    }
+    
+    .logo-text h1 {
+        font-size: 1.3rem;
+    }
+    
+    .logo-icon {
+        font-size: 1.8rem;
+    }
+    
+    .tagline {
+        font-size: 0.6rem;
+    }
+    
+    .nav {
+        gap: 10px;
+    }
+    
+    .nav a {
+        font-size: 0.8rem;
+    }
+    
+    .header-carrinho {
+        width: 35px;
+        height: 35px;
+    }
+    
+    .carrinho-icon {
+        font-size: 1.1rem;
+    }
+    
+    .instagram-image {
+        width: 30px;
+        height: 30px;
+    }
+    
+    .instagram-text {
+        font-size: 0.7rem;
+    }
+    
+    /* Hero extra responsivo */
+    .hero {
+        min-height: 50vh;
+        padding: 20px 8px;
+    }
+    
+    .hero-title {
+        font-size: 1.6rem;
+        margin-bottom: 12px;
+    }
+    
+    .hero-subtitle {
+        font-size: 0.9rem;
+        margin-bottom: 20px;
+    }
+    
+    .btn-primary {
+        padding: 10px 20px;
+        font-size: 0.85rem;
+    }
+    
+    /* Produtos extra responsivos */
+    .produto-imagem {
+        height: 200px;
+    }
+    
+    .produto-info {
+        padding: 15px;
+    }
+    
+    .produto-nome {
+        font-size: 1.2rem;
+    }
+    
+    .produto-descricao {
+        font-size: 0.85rem;
+    }
+    
+    .produto-preco {
+        font-size: 1.4rem;
+    }
+    
+    .btn-comprar, .btn-carrinho {
+        padding: 10px;
+        font-size: 0.85rem;
+    }
+    
+    /* Bolhas de sabor extra responsivas */
+    .seletor-sabores-container {
+        margin: 12px 0;
+        padding: 10px;
+    }
+    
+    .sabor-label {
+        font-size: 0.85rem;
+        margin-bottom: 8px;
+    }
+    
+    .sabores-instrucao {
+        margin-bottom: 10px;
+        padding: 8px;
+    }
+    
+    .sabores-instrucao small {
+        font-size: 0.75rem;
+        padding: 5px 10px;
+    }
+    
+    .sabores-bolhas {
+        gap: 6px;
+        padding: 6px 0;
+    }
+    
+    .sabor-bolha {
+        padding: 6px 10px;
+        font-size: 0.75rem;
+        min-width: 70px;
+        gap: 2px;
+    }
+    
+    .sabor-nome {
+        font-size: 0.75rem;
+    }
+    
+    .sabor-bolha-preco {
+        font-size: 0.6rem;
+        padding: 1px 4px;
+    }
+    
+    .sabor-bolha.selecionado::after {
+        width: 16px;
+        height: 16px;
+        font-size: 0.6rem;
+        top: -6px;
+        right: -6px;
+    }
+    
+    .sabores-selecionados {
+        padding: 10px;
+        margin-top: 10px;
+    }
+    
+    .sabores-escolhidos-label {
+        font-size: 0.75rem;
+        margin-bottom: 6px;
+    }
+    
+    .sabores-escolhidos-lista {
+        gap: 4px;
+    }
+    
+    .sabor-escolhido {
+        padding: 4px 8px;
+        font-size: 0.7rem;
+        gap: 2px;
+    }
+    
+    .sabor-preco {
+        font-size: 0.6rem;
+        padding: 1px 3px;
+    }
+    
+    .sabores-total {
+        margin-top: 8px;
+        padding: 6px 10px;
+        font-size: 0.85rem;
+    }
+    
+    .sabores-total strong {
+        font-size: 0.9rem;
+    }
+    
+    /* Modais extra responsivos */
+    .modal-carrinho-content {
+        border-radius: 0;
+    }
+    
+    .modal-compra-content,
+    .modal-login-content,
+    .welcome-modal-content {
+        max-width: 98%;
+        padding: 15px;
+        margin: 5px;
+        border-radius: 15px;
+    }
+    
+    .modal-compra-header h2,
+    .modal-login-header h2,
+    .welcome-modal-content h2 {
+        font-size: 1.4rem;
+    }
+    
+    .form-group input,
+    .form-group textarea {
+        padding: 8px 10px;
+        font-size: 0.85rem;
+    }
+    
+    .btn-buscar-cep,
+    .btn-cancelar,
+    .btn-enviar-whatsapp,
+    .btn-login-submit {
+        padding: 10px;
+        font-size: 0.85rem;
+    }
+}
+
+/* Dispositivos muito pequenos */
+@media (max-width: 360px) {
+    .hero-title {
+        font-size: 1.4rem;
+    }
+    
+    .hero-subtitle {
+        font-size: 0.8rem;
+    }
+    
+    .section-title {
+        font-size: 1.6rem;
+    }
+    
+    .produto-nome {
+        font-size: 1.1rem;
+    }
+    
+    .produto-preco {
+        font-size: 1.2rem;
+    }
+    
+    .sabor-bolha {
+        padding: 5px 8px;
+        font-size: 0.7rem;
+        min-width: 60px;
+    }
+    
+    .sabor-nome {
+        font-size: 0.7rem;
+    }
+    
+    .sabor-bolha-preco {
+        font-size: 0.55rem;
+    }
+}
+
+/* Orientação landscape em mobile */
+@media (max-width: 768px) and (orientation: landscape) {
+    .hero {
+        min-height: 80vh;
+        padding: 20px 15px;
+    }
+    
+    .hero-title {
+        font-size: 1.8rem;
+    }
+    
+    .hero-subtitle {
+        font-size: 0.95rem;
+    }
+    
+    .floating-element {
+        font-size: 1.5rem;
+        opacity: 0.3;
+    }
+}
+
+/* Melhorias para touch */
+@media (hover: none) and (pointer: coarse) {
+    .sabor-bolha,
+    .btn-comprar,
+    .btn-carrinho,
+    .btn-primary {
+        min-height: 44px;
+        min-width: 44px;
+    }
+    
+    .header-carrinho {
+        min-width: 44px;
+        min-height: 44px;
+    }
+    
+    .nav a {
+        padding: 8px 4px;
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+    }
+}
+/* ============================================
+   OTIMIZAÇÕES PARA DISPOSITIVOS TOUCH
+   ============================================ */
+
+/* Desabilita hover effects em dispositivos touch */
+.touch-device .produto-card:hover,
+.touch-device .feature:hover,
+.touch-device .promocao-card:hover {
+    transform: none;
+    box-shadow: 0 10px 30px var(--shadow-soft);
+}
+
+.touch-device .sabor-bolha:hover {
+    transform: none;
+    background: linear-gradient(135deg, var(--white) 0%, var(--bege-light) 100%);
+    box-shadow: 0 6px 16px rgba(93, 64, 55, 0.2);
+}
+
+.touch-device .btn-primary:hover,
+.touch-device .btn-comprar:hover,
+.touch-device .btn-carrinho:hover {
+    transform: none;
+}
+
+/* Melhora a área de toque */
+.touch-device .sabor-bolha,
+.touch-device .btn-comprar,
+.touch-device .btn-carrinho,
+.touch-device .header-carrinho {
+    min-height: 44px;
+    min-width: 44px;
+}
+
+/* Remove outline de foco em dispositivos touch */
+.touch-device *:focus {
+    outline: none;
+}
+
+/* Adiciona feedback visual para toque */
+.touch-device .sabor-bolha:active {
+    transform: scale(0.95);
+    opacity: 0.8;
+}
+
+.touch-device .btn-comprar:active,
+.touch-device .btn-carrinho:active,
+.touch-device .btn-primary:active {
+    transform: scale(0.95);
+    opacity: 0.9;
+}
+
+/* Melhora o scroll em dispositivos móveis */
+@media (max-width: 768px) {
+    body {
+        -webkit-overflow-scrolling: touch;
+        scroll-behavior: smooth;
+    }
+    
+    /* Otimiza performance removendo sombras complexas */
+    .produto-card,
+    .feature,
+    .promocao-card {
+        box-shadow: 0 4px 15px rgba(93, 64, 55, 0.15);
+    }
+    
+    /* Simplifica gradientes para melhor performance */
+    .hero {
+        background: var(--bege-light);
+    }
+    
+    .header {
+        background: var(--chocolate-dark);
+    }
+    
+    /* Remove animações complexas em mobile */
+    .floating-element {
+        animation: none;
+        opacity: 0.3;
+    }
+    
+    .logo-icon::after {
+        animation: none;
+    }
+}
+
+/* Previne zoom em inputs em iOS */
+@media screen and (-webkit-min-device-pixel-ratio: 0) {
+    select,
+    textarea,
+    input[type="text"],
+    input[type="password"],
+    input[type="datetime"],
+    input[type="datetime-local"],
+    input[type="date"],
+    input[type="month"],
+    input[type="time"],
+    input[type="week"],
+    input[type="number"],
+    input[type="email"],
+    input[type="url"],
+    input[type="search"],
+    input[type="tel"],
+    input[type="color"] {
+        font-size: 16px;
+    }
+}
+
+/* Melhora a legibilidade em telas pequenas */
+@media (max-width: 480px) {
+    /* Aumenta o contraste do texto */
+    .produto-descricao,
+    .promocao-descricao,
+    .sobre-text,
+    .contato-text {
+        color: var(--dark);
+        font-weight: 400;
+    }
+    
+    /* Melhora o espaçamento para touch */
+    .nav a {
+        padding: 10px 8px;
+        margin: 0 2px;
+    }
+    
+    /* Otimiza botões para touch */
+    .produto-botoes {
+        gap: 12px;
+    }
+    
+    .btn-comprar,
+    .btn-carrinho {
+        min-height: 48px;
+        font-weight: 700;
+
+
+    }
+}
+/* Ajustes para celular (telas pequenas) */
+@media screen and (max-width: 600px) {
+    .produtos-container {
+      grid-template-columns: 1fr; /* Cada produto ocupa 100% da largura */
+      gap: 15px;
+      padding: 10px;
+    }
+  
+    .produto {
+      width: 100%;
+      margin: 0 auto;
+    }
+  
+    .painel-sabores .conteudo-sabores {
+      width: 90%; /* Painel de sabores menor em celular */
+    }
+  
+    header nav a {
+      display: block;
+      margin: 5px 0;
+    }
+  }
+  

@@ -2,14 +2,25 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Flor de Chocolate - Sabores que Encantam</title>
+    <meta name="description" content="Doceria artesanal especializada em doces únicos feitos com ingredientes premium. Brigadeiros, bolos, trufas e muito mais!">
+    <meta name="keywords" content="doceria, doces artesanais, brigadeiro, bolo, trufa, chocolate, São José dos Campos">
+    <meta name="author" content="Flor de Chocolate">
+    <meta property="og:title" content="Flor de Chocolate - Sabores que Encantam">
+    <meta property="og:description" content="Doceria artesanal com doces únicos feitos com muito carinho">
+    <meta property="og:type" content="website">
     <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌺</text></svg>">
 </head>
 <body>
+    <!-- Skip link para acessibilidade -->
+    <a href="#inicio" class="skip-link">Pular para o conteúdo principal</a>
+    
     <!-- ============================================
          CABEÇALHO (HEADER)
          Logo, nome da doceria e menu de navegação
@@ -28,12 +39,12 @@
                 </div>
             </div>
             <div class="header-social">
-                <button class="header-carrinho" id="btnCarrinho" onclick="abrirModalCarrinho()" aria-label="Carrinho de Compras">
+                <button class="header-carrinho" id="btnCarrinho" onclick="console.log('Botão clicado!'); abrirModalCarrinho();" aria-label="Carrinho de Compras">
                     <span class="carrinho-icon">🛒</span>
                     <span class="carrinho-contador" id="carrinhoContador">0</span>
                 </button>
-                <a href="https://www.instagram.com/flor_de_chocolate2025?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==" target="_blank" class="header-instagram" aria-label="Instagram">
-                    <img src="logo-flor-chocolate.png" alt="Flor de Chocolate" class="instagram-image">
+                <a href="https://www.instagram.com/flor_de_chocolate2025?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==" target="_blank" class="header-instagram" aria-label="Instagram" rel="noopener">
+                    <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🌺%3C/text%3E%3C/svg%3E" alt="Flor de Chocolate" class="instagram-image" loading="lazy">
                     <span class="instagram-text">@flor_de_chocolate2025</span>
                 </a>
             </div>
@@ -150,7 +161,7 @@
                             <button class="btn-comprar" onclick="abrirModalCompra('Brigadeiro Dourado', 3.00)">
                                 Comprar Agora
                             </button>
-                            <button class="btn-carrinho" onclick="adicionarAoCarrinho('Brigadeiro Dourado', 3.00)">
+                            <button class="btn-carrinho" onclick="adicionarAoCarrinhoComSabor('Brigadeiro Dourado', 3.00)">
                                 🛒 Adicionar ao Carrinho
                             </button>
                         </div>
@@ -183,7 +194,7 @@
                 <div class="promocao-card destaque">
                     <div class="promocao-badge">Novidade</div>
                     <div class="promocao-imagem">
-                        <span class="promocao-emoji">�</span>
+                        <span class="promocao-emoji">🧁</span>
                     </div>
                     <div class="promocao-info">
                         <h3 class="promocao-nome">Cupcake Surpresa</h3>
@@ -221,11 +232,11 @@
                 <p class="contato-text">Tem alguma dúvida, quer fazer um pedido personalizado ou simplesmente bater um papo sobre doces? Adoraríamos conversar com você!</p>
                 <p class="contato-text-destaque">Entre em contato agora mesmo e descubra como podemos adoçar sua vida!</p>
                 <div class="contato-buttons">
-                    <a href="https://wa.me/5512992216807" target="_blank" class="btn-whatsapp">
+                    <a href="https://wa.me/5512992216807" target="_blank" class="btn-whatsapp" rel="noopener">
                         <span class="whatsapp-icon">💬</span>
                         Falar no WhatsApp
                     </a>
-                    <a href="https://www.instagram.com/flor_de_chocolate2025?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==" target="_blank" class="btn-instagram">
+                    <a href="https://www.instagram.com/flor_de_chocolate2025?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==" target="_blank" class="btn-instagram" rel="noopener">
                         <span class="instagram-icon">📷</span>
                         Seguir no Instagram
                     </a>
@@ -263,10 +274,10 @@
                 <div class="footer-section">
                     <h4>Redes Sociais</h4>
                     <div class="social-links">
-                        <a href="https://wa.me/5512992216807" target="_blank" class="social-link" aria-label="WhatsApp">
+                        <a href="https://wa.me/5512992216807" target="_blank" class="social-link" aria-label="WhatsApp" rel="noopener">
                             <span>💬</span> WhatsApp
                         </a>
-                        <a href="https://www.instagram.com/flor_de_chocolate2025?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==" target="_blank" class="social-link" aria-label="Instagram">
+                        <a href="https://www.instagram.com/flor_de_chocolate2025?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==" target="_blank" class="social-link" aria-label="Instagram" rel="noopener">
                             <span>📷</span> Instagram
                         </a>
                     </div>
