@@ -11,19 +11,9 @@ window.cacheManager = window.cacheManager || {
     saveToCache: () => {}
 };
 
-// Carregamento seguro de produtos (SQLite ou localStorage)
+// Carregamento de produtos do localStorage (fallback quando API não está disponível)
 function carregarProdutosSeguro() {
     try {
-        if (florDb) {
-            var lista = dbGetProdutos();
-            produtos.length = 0;
-            for (var i = 0; i < lista.length; i++) {
-                var p = lista[i];
-                delete p.id;
-                produtos.push(p);
-            }
-            return;
-        }
         var dados = localStorage.getItem('produtosFlorChocolate');
         if (!dados) return;
         var lista = JSON.parse(dados);
@@ -54,23 +44,9 @@ const PROMOCOES_PADRAO = [
     { nome: 'Cupcake Surpresa', descricao: 'Pequenos bolos recheados com surpresas deliciosas! Pacote com 6 unidades com desconto especial.', precoOriginal: 45.00, precoPromocao: 40.00, badge: 'Novidade', emoji: '🧁' }
 ];
 
-// Carregamento seguro de promoções (SQLite ou localStorage)
+// Carregamento de promoções do localStorage (fallback quando API não está disponível)
 function carregarPromocoesSeguro() {
     try {
-        if (florDb) {
-            var lista = dbGetPromocoes();
-            promocoes.length = 0;
-            for (var i = 0; i < lista.length; i++) {
-                var p = lista[i];
-                delete p.id;
-                promocoes.push(p);
-            }
-            if (promocoes.length === 0) {
-                promocoes.push.apply(promocoes, PROMOCOES_PADRAO);
-                if (typeof salvarPromocoes === 'function') salvarPromocoes();
-            }
-            return;
-        }
         var dados = localStorage.getItem('promocoesFlorChocolate');
         if (!dados) {
             promocoes.length = 0;
@@ -101,20 +77,35 @@ function renderizarPromocoesSeguro() {
     }
 }
 
-// Executa no load (mobile safe) - inicia SQLite e depois carrega dados
+// Carrega dados do banco online (API). Se falhar, usa localStorage.
+function carregarDadosOnline() {
+    var url = (typeof CONFIG !== 'undefined' && CONFIG.apiUrl) ? CONFIG.apiUrl : 'api/dados.php';
+    return fetch(url)
+        .then(function(r) { return r.ok ? r.json() : Promise.reject(); })
+        .then(function(d) {
+            if (d.produtos && Array.isArray(d.produtos)) {
+                produtos.length = 0;
+                produtos.push.apply(produtos, d.produtos);
+            }
+            if (d.promocoes && Array.isArray(d.promocoes)) {
+                promocoes.length = 0;
+                promocoes.push.apply(promocoes, d.promocoes);
+            }
+        })
+        .catch(function() {
+            carregarProdutosSeguro();
+            carregarPromocoesSeguro();
+        });
+}
+
+// Executa no load: carrega do banco online e depois renderiza
 document.addEventListener('DOMContentLoaded', function() {
-    var run = function() {
-        carregarProdutosSeguro();
-        carregarPromocoesSeguro();
+    function run() {
         renderizarProdutosSeguro();
         renderizarPromocoesSeguro();
         try { iniciarFormulariosAdmin(); } catch (err) { console.warn('Formulários admin:', err); }
-    };
-    if (typeof initSqlJs !== 'undefined') {
-        initDb().then(function() { run(); }).catch(function() { run(); });
-    } else {
-        run();
     }
+    carregarDadosOnline().then(run).catch(run);
 });
 
 /* ============================================
@@ -141,143 +132,10 @@ const CONFIG = {
     version: '2.1.0',
     cacheVersion: 'v2.1',
     enableAnalytics: true,
-    enableNotifications: true
+    enableNotifications: true,
+    // Banco online: API PHP + SQLite no servidor (XAMPP, hospedagem, etc.)
+    apiUrl: 'api/dados.php'
 };
-
-// ============================================
-// SQLite no navegador (SQL.js) - sem servidor de banco
-// ============================================
-var florDb = null;
-var florDbReady = null;
-
-function initDb() {
-    if (florDbReady) return florDbReady;
-    florDbReady = (function() {
-        if (typeof initSqlJs === 'undefined') return Promise.resolve(null);
-        var base = 'https://cdn.jsdelivr.net/npm/sql.js@1.10.2/dist/';
-        return initSqlJs({ locateFile: function(file) { return base + file; } }).then(function(SQL) {
-            var saved = localStorage.getItem('florChocolateSqlite');
-            if (saved) {
-                try {
-                    var bytes = atob(saved);
-                    var buf = new Uint8Array(bytes.length);
-                    for (var i = 0; i < bytes.length; i++) buf[i] = bytes.charCodeAt(i);
-                    florDb = new SQL.Database(buf);
-                } catch (e) { florDb = new SQL.Database(); }
-            } else {
-                florDb = new SQL.Database();
-            }
-            florDb.run('CREATE TABLE IF NOT EXISTS produtos (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT, preco REAL, descricao TEXT, sabores TEXT, personalizavel INTEGER, imagem TEXT, destaque INTEGER)');
-            florDb.run('CREATE TABLE IF NOT EXISTS promocoes (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT, badge TEXT, emoji TEXT, preco_original REAL, preco_promocao REAL, descricao TEXT)');
-            var r = florDb.exec('SELECT COUNT(*) FROM produtos');
-            var n = r.length && r[0].values && r[0].values[0] ? r[0].values[0][0] : 0;
-            if (n === 0) {
-                var oldP = localStorage.getItem('produtosFlorChocolate');
-                if (oldP) {
-                    try {
-                        var arr = JSON.parse(oldP);
-                        var stmt = florDb.prepare('INSERT INTO produtos (nome, preco, descricao, sabores, personalizavel, imagem, destaque) VALUES (?,?,?,?,?,?,?)');
-                        for (var i = 0; i < arr.length; i++) {
-                            var p = arr[i];
-                            stmt.run([p.nome || '', p.preco || 0, p.descricao || '', JSON.stringify(p.sabores || []), p.personalizavel ? 1 : 0, p.imagem || null, p.destaque ? 1 : 0]);
-                        }
-                        stmt.free();
-                    } catch (e) {}
-                }
-            }
-            r = florDb.exec('SELECT COUNT(*) FROM promocoes');
-            n = r.length && r[0].values && r[0].values[0] ? r[0].values[0][0] : 0;
-            if (n === 0) {
-                var oldPr = localStorage.getItem('promocoesFlorChocolate');
-                if (oldPr) {
-                    try {
-                        var arr = JSON.parse(oldPr);
-                        var stmt = florDb.prepare('INSERT INTO promocoes (nome, badge, emoji, preco_original, preco_promocao, descricao) VALUES (?,?,?,?,?,?)');
-                        for (var j = 0; j < arr.length; j++) {
-                            var pr = arr[j];
-                            stmt.run([pr.nome || '', pr.badge || '', pr.emoji || '🍰', pr.precoOriginal != null ? pr.precoOriginal : 0, pr.precoPromocao != null ? pr.precoPromocao : 0, pr.descricao || '']);
-                        }
-                        stmt.free();
-                    } catch (e) {}
-                }
-            }
-            return florDb;
-        }).catch(function() { return null; });
-    })();
-    return florDbReady;
-}
-
-function dbGetProdutos() {
-    if (!florDb) return [];
-    var r = florDb.exec('SELECT id, nome, preco, descricao, sabores, personalizavel, imagem, destaque FROM produtos ORDER BY id');
-    if (!r.length || !r[0].values) return [];
-    var out = [];
-    for (var i = 0; i < r[0].values.length; i++) {
-        var row = r[0].values[i];
-        out.push({
-            id: row[0],
-            nome: row[1] || '',
-            preco: row[2] != null ? row[2] : 0,
-            descricao: row[3] || '',
-            sabores: (function() { try { return JSON.parse(row[4] || '[]'); } catch (e) { return []; } })(),
-            personalizavel: !!row[5],
-            imagem: row[6] || null,
-            destaque: !!row[7]
-        });
-    }
-    return out;
-}
-
-function dbSetProdutos(arr) {
-    if (!florDb) return;
-    florDb.run('DELETE FROM produtos');
-    var stmt = florDb.prepare('INSERT INTO produtos (nome, preco, descricao, sabores, personalizavel, imagem, destaque) VALUES (?,?,?,?,?,?,?)');
-    for (var i = 0; i < arr.length; i++) {
-        var p = arr[i];
-        stmt.run([p.nome || '', p.preco != null ? p.preco : 0, p.descricao || '', JSON.stringify(p.sabores || []), p.personalizavel ? 1 : 0, p.imagem || null, p.destaque ? 1 : 0]);
-    }
-    stmt.free();
-}
-
-function dbGetPromocoes() {
-    if (!florDb) return [];
-    var r = florDb.exec('SELECT id, nome, badge, emoji, preco_original, preco_promocao, descricao FROM promocoes ORDER BY id');
-    if (!r.length || !r[0].values) return [];
-    var out = [];
-    for (var i = 0; i < r[0].values.length; i++) {
-        var row = r[0].values[i];
-        out.push({
-            id: row[0],
-            nome: row[1] || '',
-            badge: row[2] || '',
-            emoji: row[3] || '🍰',
-            precoOriginal: row[4] != null ? row[4] : 0,
-            precoPromocao: row[5] != null ? row[5] : 0,
-            descricao: row[6] || ''
-        });
-    }
-    return out;
-}
-
-function dbSetPromocoes(arr) {
-    if (!florDb) return;
-    florDb.run('DELETE FROM promocoes');
-    var stmt = florDb.prepare('INSERT INTO promocoes (nome, badge, emoji, preco_original, preco_promocao, descricao) VALUES (?,?,?,?,?,?)');
-    for (var i = 0; i < arr.length; i++) {
-        var pr = arr[i];
-        stmt.run([pr.nome || '', pr.badge || '', pr.emoji || '🍰', pr.precoOriginal != null ? pr.precoOriginal : 0, pr.precoPromocao != null ? pr.precoPromocao : 0, pr.descricao || '']);
-    }
-    stmt.free();
-}
-
-function dbPersist() {
-    if (!florDb) return;
-    try {
-        var data = florDb.export();
-        var b64 = btoa(String.fromCharCode.apply(null, new Uint8Array(data)));
-        localStorage.setItem('florChocolateSqlite', b64);
-    } catch (e) {}
-}
 
 // Detecta se é dispositivo móvel
 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -1246,94 +1104,104 @@ function excluirPromocao(index) {
 }
 
 /**
- * Carrega produtos (SQLite ou localStorage/cache)
+ * Carrega produtos do banco online (API). Se falhar, usa cache/localStorage.
  */
 function carregarProdutos() {
-    if (florDb) {
-        var lista = dbGetProdutos();
-        produtos.length = 0;
-        for (var i = 0; i < lista.length; i++) {
-            var p = lista[i];
-            delete p.id;
-            produtos.push(p);
-        }
-        cacheManager.saveToCache('produtos', produtos);
-        return;
-    }
-    var produtosCache = cacheManager.getFromCache('produtos');
-    if (produtosCache && Array.isArray(produtosCache)) {
-        produtos.length = 0;
-        produtos.push.apply(produtos, produtosCache);
-        return;
-    }
-    var produtosSalvos = localStorage.getItem('produtosFlorChocolate');
-    if (produtosSalvos) {
-        try {
-            var produtosCarregados = JSON.parse(produtosSalvos);
-            produtos.length = 0;
-            produtos.push.apply(produtos, produtosCarregados);
-            cacheManager.saveToCache('produtos', produtos);
-        } catch (e) {
-            console.error('Erro ao carregar produtos:', e);
-        }
-    }
+    var url = (typeof CONFIG !== 'undefined' && CONFIG.apiUrl) ? CONFIG.apiUrl : 'api/dados.php';
+    fetch(url)
+        .then(function(r) { return r.ok ? r.json() : Promise.reject(); })
+        .then(function(d) {
+            if (d.produtos && Array.isArray(d.produtos)) {
+                produtos.length = 0;
+                produtos.push.apply(produtos, d.produtos);
+                cacheManager.saveToCache('produtos', produtos);
+                if (typeof renderizarProdutos === 'function') renderizarProdutos();
+            }
+        })
+        .catch(function() {
+            var produtosCache = cacheManager.getFromCache('produtos');
+            if (produtosCache && Array.isArray(produtosCache)) {
+                produtos.length = 0;
+                produtos.push.apply(produtos, produtosCache);
+                return;
+            }
+            var produtosSalvos = localStorage.getItem('produtosFlorChocolate');
+            if (produtosSalvos) {
+                try {
+                    var produtosCarregados = JSON.parse(produtosSalvos);
+                    produtos.length = 0;
+                    produtos.push.apply(produtos, produtosCarregados);
+                    cacheManager.saveToCache('produtos', produtos);
+                } catch (e) {}
+            }
+        });
 }
 
 /**
- * Salva produtos (SQLite ou localStorage e cache)
+ * Salva produtos no banco online (API). Assim as alterações ficam online para todos os visitantes.
  */
 function salvarProdutos() {
-    if (florDb) {
-        dbSetProdutos(produtos);
-        dbPersist();
-    } else {
-        localStorage.setItem('produtosFlorChocolate', JSON.stringify(produtos));
-    }
     cacheManager.saveToCache('produtos', produtos);
+    var url = (typeof CONFIG !== 'undefined' && CONFIG.apiUrl) ? CONFIG.apiUrl : 'api/dados.php';
+    fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ produtos: produtos, promocoes: promocoes })
+    })
+        .then(function(r) { return r.ok ? r.json() : Promise.reject(); })
+        .then(function() {})
+        .catch(function() {
+            localStorage.setItem('produtosFlorChocolate', JSON.stringify(produtos));
+            if (typeof mostrarMensagem === 'function') mostrarMensagem('Servidor indisponível. Dados salvos só neste aparelho.', 'error');
+        });
 }
 
 /**
- * Carrega promoções (SQLite ou localStorage)
+ * Carrega promoções do banco online (API). Se falhar, usa localStorage.
  */
 function carregarPromocoes() {
-    if (florDb) {
-        var lista = dbGetPromocoes();
-        promocoes.length = 0;
-        for (var i = 0; i < lista.length; i++) {
-            var p = lista[i];
-            delete p.id;
-            promocoes.push(p);
-        }
-        return;
-    }
-    var dados = localStorage.getItem('promocoesFlorChocolate');
-    if (dados) {
-        try {
-            var lista = JSON.parse(dados);
-            if (Array.isArray(lista)) {
+    var url = (typeof CONFIG !== 'undefined' && CONFIG.apiUrl) ? CONFIG.apiUrl : 'api/dados.php';
+    fetch(url)
+        .then(function(r) { return r.ok ? r.json() : Promise.reject(); })
+        .then(function(d) {
+            if (d.promocoes && Array.isArray(d.promocoes)) {
                 promocoes.length = 0;
-                promocoes.push.apply(promocoes, lista);
+                promocoes.push.apply(promocoes, d.promocoes);
+                if (typeof renderizarPromocoes === 'function') renderizarPromocoes();
             }
-        } catch (e) {
-            console.error('Erro ao carregar promoções:', e);
-        }
-    }
+        })
+        .catch(function() {
+            var dados = localStorage.getItem('promocoesFlorChocolate');
+            if (dados) {
+                try {
+                    var lista = JSON.parse(dados);
+                    if (Array.isArray(lista)) {
+                        promocoes.length = 0;
+                        promocoes.push.apply(promocoes, lista);
+                    }
+                } catch (e) {}
+            }
+        });
 }
 
 /**
- * Salva promoções (SQLite ou localStorage)
+ * Salva promoções no banco online (API). Assim as alterações ficam online para todos.
  */
 function salvarPromocoes() {
-    if (florDb) {
-        dbSetPromocoes(promocoes);
-        dbPersist();
-    } else {
-        localStorage.setItem('promocoesFlorChocolate', JSON.stringify(promocoes));
-    }
     renderizarPromocoes();
-    if (typeof atualizarListaPromocoesAdmin === 'function') {
-        atualizarListaPromocoesAdmin();
-    }
+    if (typeof atualizarListaPromocoesAdmin === 'function') atualizarListaPromocoesAdmin();
+    var url = (typeof CONFIG !== 'undefined' && CONFIG.apiUrl) ? CONFIG.apiUrl : 'api/dados.php';
+    fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ produtos: produtos, promocoes: promocoes })
+    })
+        .then(function(r) { return r.ok ? r.json() : Promise.reject(); })
+        .then(function() {})
+        .catch(function() {
+            localStorage.setItem('promocoesFlorChocolate', JSON.stringify(promocoes));
+            if (typeof mostrarMensagem === 'function') mostrarMensagem('Servidor indisponível. Dados salvos só neste aparelho.', 'error');
+        });
 }
 
 /**
