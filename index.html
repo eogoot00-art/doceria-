@@ -144,75 +144,8 @@
                 <div class="title-decoration"></div>
                 <p class="section-subtitle">Os queridinhos que conquistaram o coração dos nossos clientes e se tornaram verdadeiros sucessos</p>
             </div>
-            <div class="promocoes-grid">
-                <div class="promocao-card destaque">
-                    <div class="promocao-badge">Mais Vendido</div>
-                    <div class="promocao-imagem">
-                        <span class="promocao-emoji">🍫</span>
-                    </div>
-                    <div class="promocao-info">
-                        <h3 class="promocao-nome">Brigadeiro Dourado</h3>
-                        <p class="promocao-descricao">O verdadeiro campeão de vendas! Brigadeiros irresistíveis feitos com chocolate belga premium e uma cobertura especial que derrete na boca. Cada mordida é uma explosão de sabor que você não vai conseguir esquecer!</p>
-                        <div class="promocao-preco">
-                            <span class="preco-original">R$ 3,50</span>
-                            <span class="preco-promocao">R$ 3,00</span>
-                        </div>
-                        <div class="promocao-botoes">
-                            <button class="btn-comprar" onclick="abrirModalCompra('Brigadeiro Dourado', 3.00)">
-                                Comprar Agora
-                            </button>
-                            <button class="btn-carrinho" onclick="adicionarAoCarrinhoComSabor('Brigadeiro Dourado', 3.00)">
-                                🛒 Adicionar ao Carrinho
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="promocao-card destaque">
-                    <div class="promocao-badge">Promoção</div>
-                    <div class="promocao-imagem">
-                        <span class="promocao-emoji">🎂</span>
-                    </div>
-                    <div class="promocao-info">
-                        <h3 class="promocao-nome">Bolo da Vovó</h3>
-                        <p class="promocao-descricao">O sabor caseiro que aquece a alma! Feito com receita tradicional e ingredientes selecionados. Encomende com antecedência e ganhe 10% de desconto - porque momentos especiais merecem um bolo especial!</p>
-                        <div class="promocao-preco">
-                            <span class="preco-original">R$ 75,00</span>
-                            <span class="preco-promocao">R$ 67,50</span>
-                        </div>
-                        <div class="promocao-botoes">
-                            <button class="btn-comprar" onclick="abrirModalCompra('Bolo da Vovó', 67.50)">
-                                Comprar Agora
-                            </button>
-                            <button class="btn-carrinho" onclick="adicionarAoCarrinho('Bolo da Vovó', 67.50)">
-                                🛒 Adicionar ao Carrinho
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="promocao-card destaque">
-                    <div class="promocao-badge">Novidade</div>
-                    <div class="promocao-imagem">
-                        <span class="promocao-emoji">🧁</span>
-                    </div>
-                    <div class="promocao-info">
-                        <h3 class="promocao-nome">Cupcake Surpresa</h3>
-                        <p class="promocao-descricao">Pequenos bolos recheados com surpresas deliciosas! Massa fofinha, recheio cremoso e cobertura especial. Pacote com 6 unidades com desconto especial - perfeito para compartilhar ou guardar só para você!</p>
-                        <div class="promocao-preco">
-                            <span class="preco-original">R$ 45,00</span>
-                            <span class="preco-promocao">R$ 40,00</span>
-                        </div>
-                        <div class="promocao-botoes">
-                            <button class="btn-comprar" onclick="abrirModalCompra('Cupcake Surpresa', 40.00)">
-                                Comprar Agora
-                            </button>
-                            <button class="btn-carrinho" onclick="adicionarAoCarrinho('Cupcake Surpresa', 40.00)">
-                                🛒 Adicionar ao Carrinho
-                            </button>
-                        </div>
-                    </div>
-                </div>
+            <div class="promocoes-grid" id="promocoesGrid">
+                <!-- Promoções e destaques são preenchidos dinamicamente via JavaScript -->
             </div>
         </div>
     </section>
@@ -451,6 +384,7 @@
         <div class="painel-admin-content">
             <div class="painel-tabs">
                 <button class="painel-tab active" onclick="mostrarTabAdmin('produtos')">Gerenciar Produtos</button>
+                <button class="painel-tab" onclick="mostrarTabAdmin('promocoes')">Promoções e Destaques</button>
                 <button class="painel-tab" onclick="mostrarTabAdmin('visitantes')">Visitantes</button>
             </div>
             
@@ -474,6 +408,11 @@
                             <textarea id="produtoDescricao" rows="3" required></textarea>
                         </div>
                         <div class="form-group">
+                            <label title="Exibir este produto na seção Promoções e Destaques">
+                                <input type="checkbox" id="produtoDestaque" style="margin-right: 8px;"> ⭐ Exibir em Promoções e Destaques
+                            </label>
+                        </div>
+                        <div class="form-group">
                             <label for="produtoImagem">Imagem do Produto (opcional)</label>
                             <input type="file" id="produtoImagem" accept="image/*" onchange="previewImagem(this, 'previewNovaImagem')">
                             <div id="previewNovaImagem" class="imagem-preview" style="display: none; margin-top: 10px;">
@@ -492,6 +431,50 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Tab de Promoções e Destaques -->
+            <div id="tabPromocoes" class="painel-tab-content">
+                <div class="admin-section">
+                    <h3>Adicionar Promoção ou Destaque</h3>
+                    <form id="formAdicionarPromocao" class="form-admin">
+                        <div class="form-row-admin">
+                            <div class="form-group">
+                                <label for="promocaoNome">Nome *</label>
+                                <input type="text" id="promocaoNome" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="promocaoBadge">Badge (ex: Mais Vendido, Promoção, Novidade)</label>
+                                <input type="text" id="promocaoBadge" placeholder="Promoção">
+                            </div>
+                        </div>
+                        <div class="form-row-admin">
+                            <div class="form-group">
+                                <label for="promocaoPrecoOriginal">Preço original (R$) *</label>
+                                <input type="number" id="promocaoPrecoOriginal" step="0.01" min="0" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="promocaoPrecoPromocao">Preço promocional (R$) *</label>
+                                <input type="number" id="promocaoPrecoPromocao" step="0.01" min="0" required>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="promocaoEmoji">Emoji (ex: 🍫 🎂 🧁)</label>
+                            <input type="text" id="promocaoEmoji" placeholder="🍰" maxlength="4" style="width: 80px;">
+                        </div>
+                        <div class="form-group">
+                            <label for="promocaoDescricao">Descrição *</label>
+                            <textarea id="promocaoDescricao" rows="3" required></textarea>
+                        </div>
+                        <button type="submit" class="btn-admin">➕ Adicionar Promoção</button>
+                    </form>
+                </div>
+                <div class="admin-section">
+                    <h3>Promoções e Destaques Cadastrados</h3>
+                    <div id="listaPromocoesAdmin" class="lista-produtos-admin">
+                        <!-- Lista preenchida via JavaScript -->
+                    </div>
+                </div>
+            </div>
             
             <!-- Tab de Visitantes -->
             <div id="tabVisitantes" class="painel-tab-content">
@@ -505,6 +488,9 @@
         </div>
     </div>
 
+    <!-- Firebase para sincronizar produtos e promoções para todos os visitantes -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
     <script src="script.js"></script>
 </body>
 </html>

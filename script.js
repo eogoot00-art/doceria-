@@ -2,6 +2,7 @@
 
 // Garante variáveis globais
 window.produtos = window.produtos || [];
+window.promocoes = window.promocoes || [];
 window.carrinho = window.carrinho || [];
 
 // Fallback para cacheManager (mobile quebra sem isso)
@@ -41,10 +42,56 @@ function renderizarProdutosSeguro() {
     }
 }
 
+// Dados iniciais de promoções (usados quando não há nada salvo)
+const PROMOCOES_PADRAO = [
+    { nome: 'Brigadeiro Dourado', descricao: 'O verdadeiro campeão de vendas! Brigadeiros irresistíveis feitos com chocolate belga premium e uma cobertura especial que derrete na boca.', precoOriginal: 3.50, precoPromocao: 3.00, badge: 'Mais Vendido', emoji: '🍫' },
+    { nome: 'Bolo da Vovó', descricao: 'O sabor caseiro que aquece a alma! Feito com receita tradicional e ingredientes selecionados. Encomende com antecedência e ganhe 10% de desconto.', precoOriginal: 75.00, precoPromocao: 67.50, badge: 'Promoção', emoji: '🎂' },
+    { nome: 'Cupcake Surpresa', descricao: 'Pequenos bolos recheados com surpresas deliciosas! Pacote com 6 unidades com desconto especial.', precoOriginal: 45.00, precoPromocao: 40.00, badge: 'Novidade', emoji: '🧁' }
+];
+
+// Carregamento seguro de promoções
+function carregarPromocoesSeguro() {
+    try {
+        const dados = localStorage.getItem('promocoesFlorChocolate');
+        if (!dados) {
+            promocoes.length = 0;
+            promocoes.push(...PROMOCOES_PADRAO);
+            try { localStorage.setItem('promocoesFlorChocolate', JSON.stringify(promocoes)); } catch (e) {}
+            return;
+        }
+        const lista = JSON.parse(dados);
+        if (Array.isArray(lista)) {
+            promocoes.length = 0;
+            promocoes.push(...lista);
+        }
+    } catch (e) {
+        console.error('Erro ao carregar promoções:', e);
+        promocoes.length = 0;
+        promocoes.push(...PROMOCOES_PADRAO);
+    }
+}
+
+// Renderização protegida de promoções
+function renderizarPromocoesSeguro() {
+    try {
+        if (typeof renderizarPromocoes === 'function') {
+            renderizarPromocoes();
+        }
+    } catch (e) {
+        console.error('Erro ao renderizar promoções:', e);
+    }
+}
+
 // Executa no load (mobile safe)
 document.addEventListener('DOMContentLoaded', () => {
     carregarProdutosSeguro();
+    carregarPromocoesSeguro();
     renderizarProdutosSeguro();
+    renderizarPromocoesSeguro();
+    // Sincronização para todos: carrega do Firebase se CONFIG.firebase estiver definido
+    if (CONFIG.firebase) {
+        initFirebaseAndLoad();
+    }
 });
 
 /* ============================================
@@ -71,7 +118,11 @@ const CONFIG = {
     version: '2.1.0',
     cacheVersion: 'v2.1',
     enableAnalytics: true,
-    enableNotifications: true
+    enableNotifications: true,
+    // Sincronização para todos: defina com o config do Firebase (Console > Projeto > Configurações do projeto).
+    // Assim, ao editar ou adicionar produto, todos os visitantes veem as alterações.
+    firebase: null,
+    dadosUrl: null
 };
 
 // Detecta se é dispositivo móvel
@@ -627,10 +678,11 @@ function atualizarListaProdutosAdmin() {
  * Edita um produto
  */
 function editarProduto(index) {
-    const produto = produtos[index];
-    
-    // Cria um modal para edição
-    const modal = document.createElement('div');
+    fecharModalEditar();
+    var produto = produtos[index];
+    if (!produto) return;
+
+    var modal = document.createElement('div');
     modal.className = 'modal-login show';
     modal.style.display = 'flex';
     modal.id = 'modalEditarProduto';
@@ -649,6 +701,7 @@ function editarProduto(index) {
     // Prepara sabores atuais
     const saboresAtuais = produto.sabores ? produto.sabores.join(', ') : '';
     const isPersonalizavel = produto.personalizavel || false;
+    const isDestaque = produto.destaque === true;
     
     modal.innerHTML = `
         <div class="modal-login-content" style="max-width: 700px; max-height: 90vh; overflow-y: auto;">
@@ -670,6 +723,11 @@ function editarProduto(index) {
                 <div class="form-group">
                     <label>Descrição *</label>
                     <textarea id="editDescricao" rows="4" required>${escaparHTML(produto.descricao)}</textarea>
+                </div>
+                <div class="form-group">
+                    <label title="Exibir este produto na seção Promoções e Destaques">
+                        <input type="checkbox" id="editDestaque" ${isDestaque ? 'checked' : ''} style="margin-right: 8px;"> ⭐ Exibir em Promoções e Destaques
+                    </label>
                 </div>
                 <div class="form-group">
                     <label>
@@ -718,65 +776,73 @@ function editarProduto(index) {
         }
     });
     
-    // Submete o formulário
+    // Submete o formulário (usa elementos do próprio form para evitar conflitos de ID)
     const form = modal.querySelector('#formEditarProduto');
+    if (!form) return;
     form.addEventListener('submit', function(e) {
         e.preventDefault();
-        
-        const novoNome = document.getElementById('editNome').value.trim();
-        const novoPreco = parseFloat(document.getElementById('editPreco').value);
-        const novaDescricao = document.getElementById('editDescricao').value.trim();
-        const novosSabores = document.getElementById('editSabores').value.trim();
-        const novoPersonalizavel = document.getElementById('editPersonalizavel').checked;
-        const fileInput = document.getElementById('editImagem');
-        
-        if (!novoNome || !novaDescricao || isNaN(novoPreco) || novoPreco <= 0) {
-            mostrarMensagem('Por favor, preencha todos os campos corretamente!', 'error');
+        e.stopPropagation();
+        var novoNome = form.querySelector('#editNome');
+        var editPreco = form.querySelector('#editPreco');
+        var editDescricao = form.querySelector('#editDescricao');
+        var editSabores = form.querySelector('#editSabores');
+        var editPersonalizavel = form.querySelector('#editPersonalizavel');
+        var editDestaqueEl = form.querySelector('#editDestaque');
+        var fileInput = form.querySelector('#editImagem');
+        if (!novoNome || !editPreco || !editDescricao) {
+            if (typeof mostrarMensagem === 'function') mostrarMensagem('Campos do formulário não encontrados.', 'error');
             return;
         }
-        
-        // Processa os sabores
-        let saboresArray = [];
-        if (novosSabores) {
-            saboresArray = novosSabores.split(',').map(sabor => sabor.trim()).filter(sabor => sabor.length > 0);
+        var nomeVal = novoNome.value.trim();
+        var precoVal = parseFloat(editPreco.value);
+        var descVal = editDescricao.value.trim();
+        var saboresVal = editSabores ? editSabores.value.trim() : '';
+        var personalizavelVal = editPersonalizavel ? editPersonalizavel.checked : false;
+        var destaqueVal = editDestaqueEl ? editDestaqueEl.checked : false;
+
+        if (!nomeVal || !descVal || isNaN(precoVal) || precoVal <= 0) {
+            if (typeof mostrarMensagem === 'function') mostrarMensagem('Por favor, preencha todos os campos corretamente!', 'error');
+            return;
         }
-        
-        // Processa a imagem se houver uma nova
-        if (fileInput.files && fileInput.files[0]) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
+        var saboresArray = [];
+        if (saboresVal) saboresArray = saboresVal.split(',').map(function(s) { return s.trim(); }).filter(Boolean);
+
+        if (fileInput && fileInput.files && fileInput.files[0]) {
+            var reader = new FileReader();
+            reader.onload = function(ev) {
                 produtos[index] = {
-                    nome: novoNome,
-                    preco: novoPreco,
-                    descricao: novaDescricao,
+                    nome: nomeVal,
+                    preco: precoVal,
+                    descricao: descVal,
                     sabores: saboresArray,
-                    personalizavel: novoPersonalizavel,
-                    imagem: e.target.result // Salva como data URL (base64)
+                    personalizavel: personalizavelVal,
+                    imagem: ev.target.result,
+                    destaque: !!destaqueVal
                 };
-                
                 salvarProdutos();
                 renderizarProdutos();
+                renderizarPromocoes();
                 atualizarListaProdutosAdmin();
                 fecharModalEditar();
-                mostrarMensagemCarrinho('Produto atualizado com sucesso! ✅');
+                if (typeof mostrarMensagemCarrinho === 'function') mostrarMensagemCarrinho('Produto atualizado com sucesso! ✅');
             };
             reader.readAsDataURL(fileInput.files[0]);
         } else {
-            // Mantém a imagem atual se não houver nova
             produtos[index] = {
-                nome: novoNome,
-                preco: novoPreco,
-                descricao: novaDescricao,
+                nome: nomeVal,
+                preco: precoVal,
+                descricao: descVal,
                 sabores: saboresArray,
-                personalizavel: novoPersonalizavel,
-                imagem: produto.imagem // Mantém a imagem atual
+                personalizavel: personalizavelVal,
+                imagem: produto.imagem,
+                destaque: !!destaqueVal
             };
-            
             salvarProdutos();
             renderizarProdutos();
+            renderizarPromocoes();
             atualizarListaProdutosAdmin();
             fecharModalEditar();
-            mostrarMensagemCarrinho('Produto atualizado com sucesso! ✅');
+            if (typeof mostrarMensagemCarrinho === 'function') mostrarMensagemCarrinho('Produto atualizado com sucesso! ✅');
         }
     });
 }
@@ -841,6 +907,137 @@ function excluirProduto(index) {
 }
 
 /**
+ * Atualiza a lista de promoções no painel admin
+ */
+function atualizarListaPromocoesAdmin() {
+    const lista = document.getElementById('listaPromocoesAdmin');
+    if (!lista) return;
+
+    if (promocoes.length === 0) {
+        lista.innerHTML = '<p style="text-align: center; padding: 20px; color: var(--dark-soft);">Nenhuma promoção ou destaque cadastrado</p>';
+        return;
+    }
+
+    lista.innerHTML = promocoes.map((p, index) => {
+        const precoPromo = (p.precoPromocao != null ? p.precoPromocao : p.preco).toFixed(2).replace('.', ',');
+        const badge = p.badge || 'Destaque';
+        return `
+            <div class="produto-admin-item">
+                <div class="produto-admin-info">
+                    <h4>${escaparHTML(p.nome)}</h4>
+                    <p>${escaparHTML((p.descricao || '').substring(0, 80))}...</p>
+                    <strong>${badge} · R$ ${precoPromo}</strong>
+                </div>
+                <div class="produto-admin-acoes">
+                    <button class="btn-editar" onclick="editarPromocao(${index})">✏️ Editar</button>
+                    <button class="btn-excluir" onclick="excluirPromocao(${index})">🗑️ Excluir</button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+/**
+ * Edita uma promoção/destaque
+ */
+function editarPromocao(index) {
+    const p = promocoes[index];
+    const modal = document.createElement('div');
+    modal.className = 'modal-login show';
+    modal.style.display = 'flex';
+    modal.id = 'modalEditarPromocao';
+
+    modal.innerHTML = `
+        <div class="modal-login-content" style="max-width: 600px; max-height: 90vh; overflow-y: auto;">
+            <button class="modal-login-close" onclick="fecharModalEditarPromocao()">&times;</button>
+            <div class="modal-login-header">
+                <h2>✏️ Editar Promoção / Destaque</h2>
+            </div>
+            <form id="formEditarPromocao" class="form-admin">
+                <div class="form-group">
+                    <label>Nome *</label>
+                    <input type="text" id="editPromoNome" value="${escaparHTML(p.nome)}" required>
+                </div>
+                <div class="form-row-admin">
+                    <div class="form-group">
+                        <label>Badge (ex: Mais Vendido, Promoção, Novidade)</label>
+                        <input type="text" id="editPromoBadge" value="${escaparHTML(p.badge || '')}" placeholder="Promoção">
+                    </div>
+                    <div class="form-group">
+                        <label>Emoji</label>
+                        <input type="text" id="editPromoEmoji" value="${escaparHTML(p.emoji || '🍰')}" maxlength="4" style="width: 80px;">
+                    </div>
+                </div>
+                <div class="form-row-admin">
+                    <div class="form-group">
+                        <label>Preço original (R$) *</label>
+                        <input type="number" id="editPromoPrecoOriginal" step="0.01" min="0" value="${p.precoOriginal != null ? p.precoOriginal : p.preco || 0}" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Preço promocional (R$) *</label>
+                        <input type="number" id="editPromoPrecoPromocao" step="0.01" min="0" value="${p.precoPromocao != null ? p.precoPromocao : p.preco || 0}" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Descrição *</label>
+                    <textarea id="editPromoDescricao" rows="4" required>${escaparHTML(p.descricao || '')}</textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-cancelar" onclick="fecharModalEditarPromocao()">Cancelar</button>
+                    <button type="submit" class="btn-admin">Salvar Alterações</button>
+                </div>
+            </form>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) fecharModalEditarPromocao();
+    });
+
+    modal.querySelector('#formEditarPromocao').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const nome = document.getElementById('editPromoNome').value.trim();
+        const badge = document.getElementById('editPromoBadge').value.trim() || 'Destaque';
+        const emoji = document.getElementById('editPromoEmoji').value.trim() || '🍰';
+        const precoOriginal = parseFloat(document.getElementById('editPromoPrecoOriginal').value);
+        const precoPromocao = parseFloat(document.getElementById('editPromoPrecoPromocao').value);
+        const descricao = document.getElementById('editPromoDescricao').value.trim();
+
+        if (!nome || !descricao || isNaN(precoOriginal) || isNaN(precoPromocao) || precoPromocao <= 0) {
+            mostrarMensagem('Preencha todos os campos corretamente!', 'error');
+            return;
+        }
+
+        promocoes[index] = { nome, badge, emoji, precoOriginal, precoPromocao, descricao };
+        salvarPromocoes();
+        fecharModalEditarPromocao();
+        mostrarMensagemCarrinho('Promoção atualizada com sucesso! ✅');
+    });
+}
+
+/**
+ * Fecha o modal de edição de promoção
+ */
+function fecharModalEditarPromocao() {
+    const modal = document.getElementById('modalEditarPromocao');
+    if (modal) modal.remove();
+}
+
+/**
+ * Exclui uma promoção/destaque
+ */
+function excluirPromocao(index) {
+    if (confirm('Tem certeza que deseja excluir esta promoção/destaque?')) {
+        promocoes.splice(index, 1);
+        salvarPromocoes();
+        atualizarListaPromocoesAdmin();
+        mostrarMensagemCarrinho('Promoção excluída! ✅');
+    }
+}
+
+/**
  * Carrega produtos do localStorage
  */
 function carregarProdutos() {
@@ -874,7 +1071,113 @@ function carregarProdutos() {
 function salvarProdutos() {
     localStorage.setItem('produtosFlorChocolate', JSON.stringify(produtos));
     cacheManager.saveToCache('produtos', produtos);
+    sincronizarDadosRemotos();
 }
+
+/**
+ * Carrega promoções do localStorage
+ */
+function carregarPromocoes() {
+    const dados = localStorage.getItem('promocoesFlorChocolate');
+    if (dados) {
+        try {
+            const lista = JSON.parse(dados);
+            if (Array.isArray(lista)) {
+                promocoes.length = 0;
+                promocoes.push(...lista);
+            }
+        } catch (e) {
+            console.error('Erro ao carregar promoções:', e);
+        }
+    }
+}
+
+/**
+ * Salva promoções no localStorage
+ */
+function salvarPromocoes() {
+    localStorage.setItem('promocoesFlorChocolate', JSON.stringify(promocoes));
+    renderizarPromocoes();
+    if (typeof atualizarListaPromocoesAdmin === 'function') {
+        atualizarListaPromocoesAdmin();
+    }
+    sincronizarDadosRemotos();
+}
+
+/**
+ * Tenta carregar produtos e promoções de uma URL (para todos verem os mesmos dados).
+ * Defina CONFIG.dadosUrl com a URL de um JSON: { produtos: [], promocoes: [] }
+ */
+function carregarDadosRemotos() {
+    if (!CONFIG.dadosUrl || typeof fetch !== 'function') return;
+    fetch(CONFIG.dadosUrl)
+        .then(r => r.ok ? r.json() : Promise.reject())
+        .then(d => {
+            if (d.produtos && Array.isArray(d.produtos)) {
+                produtos.length = 0;
+                produtos.push(...d.produtos);
+                localStorage.setItem('produtosFlorChocolate', JSON.stringify(produtos));
+                cacheManager.saveToCache('produtos', produtos);
+                renderizarProdutos();
+            }
+            if (d.promocoes && Array.isArray(d.promocoes)) {
+                promocoes.length = 0;
+                promocoes.push(...d.promocoes);
+                localStorage.setItem('promocoesFlorChocolate', JSON.stringify(promocoes));
+                renderizarPromocoes();
+            }
+        })
+        .catch(() => {});
+}
+
+/** Banco Firestore (quando CONFIG.firebase está definido) */
+let dbFirestore = null;
+
+/**
+ * Inicializa Firebase e carrega produtos e promoções do Firestore para todos verem o mesmo.
+ * Defina CONFIG.firebase com: { apiKey, authDomain, projectId, storageBucket, messagingSenderId, appId }
+ */
+function initFirebaseAndLoad() {
+    if (!CONFIG.firebase || typeof firebase === 'undefined') return;
+    try {
+        firebase.initializeApp(CONFIG.firebase);
+        dbFirestore = firebase.firestore();
+        dbFirestore.collection('site').doc('dados').get().then(function(doc) {
+            if (doc.exists) {
+                const d = doc.data();
+                if (d.produtos && Array.isArray(d.produtos)) {
+                    produtos.length = 0;
+                    produtos.push(...d.produtos);
+                    localStorage.setItem('produtosFlorChocolate', JSON.stringify(produtos));
+                    cacheManager.saveToCache('produtos', produtos);
+                    renderizarProdutos();
+                }
+                if (d.promocoes && Array.isArray(d.promocoes)) {
+                    promocoes.length = 0;
+                    promocoes.push(...d.promocoes);
+                    localStorage.setItem('promocoesFlorChocolate', JSON.stringify(promocoes));
+                    renderizarPromocoes();
+                }
+            }
+        }).catch(function() {});
+    } catch (e) {
+        console.warn('Firebase:', e);
+    }
+}
+
+/**
+ * Envia produtos e promoções para o Firestore quando o admin salva, para todos verem as alterações.
+ */
+function sincronizarDadosRemotos() {
+    if (!dbFirestore) return;
+    try {
+        dbFirestore.collection('site').doc('dados').set({
+            produtos: produtos,
+            promocoes: promocoes
+        }).catch(function() {});
+    } catch (e) {}
+}
+
 
 /**
  * Carrega o carrinho do localStorage e cache
@@ -964,6 +1267,9 @@ function mostrarTabAdmin(tab) {
     
     if (tab === 'visitantes') {
         atualizarListaVisitantes();
+    }
+    if (tab === 'promocoes') {
+        atualizarListaPromocoesAdmin();
     }
 }
 
@@ -2100,6 +2406,86 @@ function renderizarProdutos() {
 }
 
 /**
+ * Renderiza um card de promoção (objeto promoção ou produto em destaque)
+ */
+function criarCardPromocao(p, precoPromoNum, precoOrig, precoPromo, badge, emoji) {
+    const nomeEsc = escaparHTML(p.nome).replace(/'/g, "\\'");
+    return `
+        <div class="promocao-card destaque">
+            <div class="promocao-badge">${escaparHTML(badge)}</div>
+            <div class="promocao-imagem">
+                <span class="promocao-emoji">${emoji}</span>
+            </div>
+            <div class="promocao-info">
+                <h3 class="promocao-nome">${escaparHTML(p.nome)}</h3>
+                <p class="promocao-descricao">${escaparHTML(p.descricao || '')}</p>
+                <div class="promocao-preco">
+                    <span class="preco-original">R$ ${precoOrig}</span>
+                    <span class="preco-promocao">R$ ${precoPromo}</span>
+                </div>
+                <div class="promocao-botoes">
+                    <button class="btn-comprar" onclick="abrirModalCompra('${nomeEsc}', ${precoPromoNum})">Comprar Agora</button>
+                    <button class="btn-carrinho" onclick="adicionarAoCarrinho('${nomeEsc}', ${precoPromoNum})">🛒 Adicionar ao Carrinho</button>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Renderiza a seção de Promoções e Destaques
+ * Mostra: promoções cadastradas + produtos marcados com ⭐ (destaque)
+ */
+function renderizarPromocoes() {
+    const grid = document.getElementById('promocoesGrid');
+    if (!grid) return;
+
+    // Produtos em destaque: aceita true, "true", 1 ou qualquer valor truthy
+    const produtosDestaque = produtos.filter(function(p) {
+        return p && (p.destaque === true || p.destaque === 'true' || p.destaque === 1 || !!p.destaque);
+    });
+    const temPromocoes = promocoes.length > 0 || produtosDestaque.length > 0;
+
+    if (!temPromocoes) {
+        grid.innerHTML = `
+            <div style="grid-column: 1 / -1; text-align: center; padding: 40px 20px; color: var(--dark-soft);">
+                <p>Nenhuma promoção ou destaque no momento.</p>
+            </div>
+        `;
+        return;
+    }
+
+    let html = '';
+
+    // Cards das promoções cadastradas (aba Promoções e Destaques)
+    promocoes.forEach((p) => {
+        const precoOrigVal = p.precoOriginal != null ? p.precoOriginal : (p.preco != null ? p.preco : 0);
+        const precoPromoVal = p.precoPromocao != null ? p.precoPromocao : (p.preco != null ? p.preco : 0);
+        const precoOrig = precoOrigVal.toFixed(2).replace('.', ',');
+        const precoPromo = precoPromoVal.toFixed(2).replace('.', ',');
+        html += criarCardPromocao(p, precoPromoVal, precoOrig, precoPromo, p.badge || 'Destaque', p.emoji || '🍰');
+    });
+
+    // Cards dos produtos marcados com ⭐ (Exibir em Promoções e Destaques)
+    produtosDestaque.forEach((p) => {
+        const preco = (p.preco != null ? p.preco : 0);
+        const precoOrig = preco.toFixed(2).replace('.', ',');
+        const precoPromo = preco.toFixed(2).replace('.', ',');
+        html += criarCardPromocao(p, preco, precoOrig, precoPromo, 'Destaque', p.emoji || '⭐');
+    });
+
+    grid.innerHTML = html;
+
+    setTimeout(() => {
+        document.querySelectorAll('#promocoesGrid .promocao-card').forEach((card, i) => {
+            card.classList.add('fade-in');
+            card.classList.add(i % 2 === 0 ? 'slide-in-left' : 'slide-in-right');
+            observer.observe(card);
+        });
+    }, 50);
+}
+
+/**
  * Adiciona um novo produto ao array
  * @param {string} nome - Nome do produto
  * @param {string} descricao - Descrição do produto
@@ -2146,11 +2532,15 @@ function limparProdutos() {
  * Configura scroll suave para todos os links âncora
  * Melhora a experiência de navegação no site
  */
-document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-    anchor.addEventListener('click', function (e) {
+document.querySelectorAll('a[href^="#"]').forEach(function(anchor) {
+    anchor.addEventListener('click', function(e) {
         e.preventDefault();
-        const target = document.querySelector(this.getAttribute('href'));
+        var href = this.getAttribute('href');
+        var target = document.querySelector(href);
         if (target) {
+            if (href === '#promocoes' && typeof renderizarPromocoes === 'function') {
+                renderizarPromocoes();
+            }
             target.scrollIntoView({
                 behavior: 'smooth',
                 block: 'start'
@@ -2557,50 +2947,53 @@ document.addEventListener('DOMContentLoaded', () => {
     if (formAdicionarProduto) {
         formAdicionarProduto.addEventListener('submit', function(e) {
             e.preventDefault();
-            const nome = document.getElementById('produtoNome').value.trim();
-            const preco = parseFloat(document.getElementById('produtoPreco').value);
-            const descricao = document.getElementById('produtoDescricao').value.trim();
-            const fileInput = document.getElementById('produtoImagem');
-            // Campos opcionais (podem não existir no HTML)
-            const elSabores = document.getElementById('produtoSabores');
-            const elPersonalizavel = document.getElementById('produtoPersonalizavel');
-            const sabores = elSabores ? elSabores.value.trim() : '';
-            const personalizavel = elPersonalizavel ? elPersonalizavel.checked : false;
+            e.stopPropagation();
+            var nomeEl = formAdicionarProduto.querySelector('#produtoNome');
+            var precoEl = formAdicionarProduto.querySelector('#produtoPreco');
+            var descricaoEl = formAdicionarProduto.querySelector('#produtoDescricao');
+            var fileInput = formAdicionarProduto.querySelector('#produtoImagem');
+            var destaqueEl = formAdicionarProduto.querySelector('#produtoDestaque');
+            var nome = nomeEl ? nomeEl.value.trim() : '';
+            var preco = precoEl ? parseFloat(precoEl.value) : NaN;
+            var descricao = descricaoEl ? descricaoEl.value.trim() : '';
+            var destaque = destaqueEl ? destaqueEl.checked : false;
+            var elSabores = formAdicionarProduto.querySelector('#produtoSabores');
+            var elPersonalizavel = formAdicionarProduto.querySelector('#produtoPersonalizavel');
+            var sabores = elSabores ? elSabores.value.trim() : '';
+            var personalizavel = elPersonalizavel ? elPersonalizavel.checked : false;
 
             if (!nome || !descricao || isNaN(preco) || preco <= 0) {
-                mostrarMensagem('Por favor, preencha todos os campos obrigatórios!', 'error');
+                if (typeof mostrarMensagem === 'function') mostrarMensagem('Por favor, preencha todos os campos obrigatórios!', 'error');
                 return;
             }
+            var saboresArray = [];
+            if (sabores) saboresArray = sabores.split(',').map(function(s) { return s.trim(); }).filter(Boolean);
 
-            let saboresArray = [];
-            if (sabores) {
-                saboresArray = sabores.split(',').map(sabor => sabor.trim()).filter(sabor => sabor.length > 0);
-            }
-
-            const salvarComImagem = (imagemData) => {
+            var salvarComImagem = function(imagemData) {
                 produtos.push({
-                    nome,
-                    preco,
-                    descricao,
+                    nome: nome,
+                    preco: preco,
+                    descricao: descricao,
                     sabores: saboresArray,
                     personalizavel: personalizavel,
-                    imagem: imagemData
+                    imagem: imagemData,
+                    destaque: !!destaque
                 });
                 salvarProdutos();
                 renderizarProdutos();
+                renderizarPromocoes();
                 atualizarListaProdutosAdmin();
                 formAdicionarProduto.reset();
-                const preview = document.getElementById('previewNovaImagem');
+                var preview = document.getElementById('previewNovaImagem');
                 if (preview) {
                     preview.style.display = 'none';
-                    const img = preview.querySelector('img');
+                    var img = preview.querySelector('img');
                     if (img) img.src = '';
                 }
-                mostrarMensagemCarrinho('Produto adicionado com sucesso! ✅');
+                if (typeof mostrarMensagemCarrinho === 'function') mostrarMensagemCarrinho('Produto adicionado com sucesso! ✅');
             };
-
             if (fileInput && fileInput.files && fileInput.files[0]) {
-                const reader = new FileReader();
+                var reader = new FileReader();
                 reader.onload = function(ev) {
                     salvarComImagem(ev.target.result);
                 };
@@ -2608,6 +3001,37 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 salvarComImagem(null);
             }
+        });
+    }
+
+    // Formulário de adicionar promoção/destaque/destaque (admin)
+    const formAdicionarPromocao = document.getElementById('formAdicionarPromocao');
+    if (formAdicionarPromocao) {
+        formAdicionarPromocao.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const nome = document.getElementById('promocaoNome').value.trim();
+            const badge = document.getElementById('promocaoBadge').value.trim() || 'Destaque';
+            const precoOriginal = parseFloat(document.getElementById('promocaoPrecoOriginal').value);
+            const precoPromocao = parseFloat(document.getElementById('promocaoPrecoPromocao').value);
+            const emoji = (document.getElementById('promocaoEmoji') && document.getElementById('promocaoEmoji').value.trim()) || '🍰';
+            const descricao = document.getElementById('promocaoDescricao').value.trim();
+
+            if (!nome || !descricao || isNaN(precoOriginal) || isNaN(precoPromocao) || precoPromocao <= 0) {
+                mostrarMensagem('Preencha todos os campos obrigatórios!', 'error');
+                return;
+            }
+
+            promocoes.push({
+                nome,
+                badge,
+                emoji,
+                precoOriginal,
+                precoPromocao,
+                descricao
+            });
+            salvarPromocoes();
+            formAdicionarPromocao.reset();
+            mostrarMensagemCarrinho('Promoção adicionada com sucesso! ✅');
         });
     }
     
@@ -2658,5 +3082,8 @@ window.mostrarTabAdmin = mostrarTabAdmin;
 window.editarProduto = editarProduto;
 window.excluirProduto = excluirProduto;
 window.fecharModalEditar = fecharModalEditar;
+window.editarPromocao = editarPromocao;
+window.excluirPromocao = excluirPromocao;
+window.fecharModalEditarPromocao = fecharModalEditarPromocao;
 window.previewImagem = previewImagem;
 window.removerPreview = removerPreview;
