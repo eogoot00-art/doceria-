@@ -119,6 +119,7 @@ body {
     text-rendering: optimizeLegibility;
     min-height: 100vh;
     min-height: -webkit-fill-available;
+    padding-bottom: env(safe-area-inset-bottom);
 }
 /* ============================================
    CELULAR - Base para todos os tamanhos pequenos
@@ -271,12 +272,23 @@ p, li, span {
 }
 
 /* ============================================
-   CONTAINER PRINCIPAL
+   CONTAINER PRINCIPAL - Mobile first (celular)
    ============================================ */
 .container {
-    max-width: 1200px;
+    width: 100%;
+    max-width: 100%;
     margin: 0 auto;
-    padding: 0 20px;
+    padding: 12px 16px;
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+}
+
+/* Desktop: só a partir de 769px */
+@media (min-width: 769px) {
+    .container {
+        max-width: 1200px;
+        padding: 0 20px;
+    }
 }
 
 /* ============================================
@@ -3062,14 +3074,21 @@ section {
     box-shadow: 0 4px 15px var(--shadow-soft);
 }
 
+/* Input de imagem: área grande no celular para toque */
+.form-group-imagem input[type="file"],
 .form-admin input[type="file"] {
-    padding: 10px;
+    display: block;
+    width: 100%;
+    min-height: 44px;
+    padding: 12px;
     border: 2px dashed var(--chocolate-light);
     border-radius: 10px;
     background: var(--white);
     cursor: pointer;
     transition: all var(--transition-normal);
     font-family: 'Poppins', sans-serif;
+    font-size: 16px;
+    -webkit-tap-highlight-color: transparent;
 }
 
 .form-admin input[type="file"]:hover {
@@ -3078,16 +3097,31 @@ section {
 }
 
 .form-admin input[type="file"]::file-selector-button {
-    padding: 8px 15px;
+    min-height: 44px;
+    padding: 10px 18px;
     background: linear-gradient(135deg, var(--chocolate-medium) 0%, var(--chocolate-dark) 100%);
     color: var(--bege-light);
     border: none;
-    border-radius: 5px;
+    border-radius: 8px;
     cursor: pointer;
     font-weight: 600;
     font-family: 'Poppins', sans-serif;
-    margin-right: 10px;
+    margin-right: 12px;
     transition: all var(--transition-normal);
+    font-size: 16px;
+}
+.btn-remover-imagem {
+    margin-top: 10px;
+    padding: 10px 18px;
+    min-height: 44px;
+    background: #E53935;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 16px;
+    font-family: 'Poppins', sans-serif;
+    -webkit-tap-highlight-color: transparent;
 }
 
 .form-admin input[type="file"]::file-selector-button:hover {

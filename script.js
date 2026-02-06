@@ -11,20 +11,28 @@ window.cacheManager = window.cacheManager || {
     saveToCache: () => {}
 };
 
-// Carregamento seguro de produtos (não apaga os produtos se não houver dados salvos)
+// Carregamento seguro de produtos (SQLite ou localStorage)
 function carregarProdutosSeguro() {
     try {
-        const dados = localStorage.getItem('produtosFlorChocolate');
-        if (!dados) {
+        if (florDb) {
+            var lista = dbGetProdutos();
+            produtos.length = 0;
+            for (var i = 0; i < lista.length; i++) {
+                var p = lista[i];
+                delete p.id;
+                produtos.push(p);
+            }
             return;
         }
-        const lista = JSON.parse(dados);
+        var dados = localStorage.getItem('produtosFlorChocolate');
+        if (!dados) return;
+        var lista = JSON.parse(dados);
         if (Array.isArray(lista) && lista.length > 0) {
             produtos.length = 0;
-            produtos.push(...lista);
+            produtos.push.apply(produtos, lista);
         }
     } catch (e) {
-        console.error('Erro ao carregar produtos (mobile):', e);
+        console.error('Erro ao carregar produtos:', e);
     }
 }
 
@@ -46,25 +54,39 @@ const PROMOCOES_PADRAO = [
     { nome: 'Cupcake Surpresa', descricao: 'Pequenos bolos recheados com surpresas deliciosas! Pacote com 6 unidades com desconto especial.', precoOriginal: 45.00, precoPromocao: 40.00, badge: 'Novidade', emoji: '🧁' }
 ];
 
-// Carregamento seguro de promoções
+// Carregamento seguro de promoções (SQLite ou localStorage)
 function carregarPromocoesSeguro() {
     try {
-        const dados = localStorage.getItem('promocoesFlorChocolate');
+        if (florDb) {
+            var lista = dbGetPromocoes();
+            promocoes.length = 0;
+            for (var i = 0; i < lista.length; i++) {
+                var p = lista[i];
+                delete p.id;
+                promocoes.push(p);
+            }
+            if (promocoes.length === 0) {
+                promocoes.push.apply(promocoes, PROMOCOES_PADRAO);
+                if (typeof salvarPromocoes === 'function') salvarPromocoes();
+            }
+            return;
+        }
+        var dados = localStorage.getItem('promocoesFlorChocolate');
         if (!dados) {
             promocoes.length = 0;
-            promocoes.push(...PROMOCOES_PADRAO);
+            promocoes.push.apply(promocoes, PROMOCOES_PADRAO);
             try { localStorage.setItem('promocoesFlorChocolate', JSON.stringify(promocoes)); } catch (e) {}
             return;
         }
-        const lista = JSON.parse(dados);
+        var lista = JSON.parse(dados);
         if (Array.isArray(lista)) {
             promocoes.length = 0;
-            promocoes.push(...lista);
+            promocoes.push.apply(promocoes, lista);
         }
     } catch (e) {
         console.error('Erro ao carregar promoções:', e);
         promocoes.length = 0;
-        promocoes.push(...PROMOCOES_PADRAO);
+        promocoes.push.apply(promocoes, PROMOCOES_PADRAO);
     }
 }
 
@@ -79,17 +101,19 @@ function renderizarPromocoesSeguro() {
     }
 }
 
-// Executa no load (mobile safe) - formulários admin registrados aqui para funcionar no celular
+// Executa no load (mobile safe) - inicia SQLite e depois carrega dados
 document.addEventListener('DOMContentLoaded', function() {
-    carregarProdutosSeguro();
-    carregarPromocoesSeguro();
-    renderizarProdutosSeguro();
-    renderizarPromocoesSeguro();
-    if (typeof CONFIG !== 'undefined' && CONFIG.firebase) {
-        try { initFirebaseAndLoad(); } catch (err) {}
-    }
-    try { iniciarFormulariosAdmin(); } catch (err) {
-        console.warn('Formulários admin:', err);
+    var run = function() {
+        carregarProdutosSeguro();
+        carregarPromocoesSeguro();
+        renderizarProdutosSeguro();
+        renderizarPromocoesSeguro();
+        try { iniciarFormulariosAdmin(); } catch (err) { console.warn('Formulários admin:', err); }
+    };
+    if (typeof initSqlJs !== 'undefined') {
+        initDb().then(function() { run(); }).catch(function() { run(); });
+    } else {
+        run();
     }
 });
 
@@ -117,20 +141,143 @@ const CONFIG = {
     version: '2.1.0',
     cacheVersion: 'v2.1',
     enableAnalytics: true,
-    enableNotifications: true,
-    // Sincronização para todos: preencha com os dados do seu projeto no Firebase Console (https://console.firebase.google.com).
-    // Assim, ao editar ou cadastrar um produto, todos que acessam de outro lugar veem as alterações.
-    // Se não quiser usar Firebase, deixe null.
-    firebase: {
-        apiKey: 'SEU_API_KEY',
-        authDomain: 'SEU_PROJECT_ID.firebaseapp.com',
-        projectId: 'SEU_PROJECT_ID',
-        storageBucket: 'SEU_PROJECT_ID.appspot.com',
-        messagingSenderId: 'SEU_SENDER_ID',
-        appId: 'SEU_APP_ID'
-    },
-    dadosUrl: null
+    enableNotifications: true
 };
+
+// ============================================
+// SQLite no navegador (SQL.js) - sem servidor de banco
+// ============================================
+var florDb = null;
+var florDbReady = null;
+
+function initDb() {
+    if (florDbReady) return florDbReady;
+    florDbReady = (function() {
+        if (typeof initSqlJs === 'undefined') return Promise.resolve(null);
+        var base = 'https://cdn.jsdelivr.net/npm/sql.js@1.10.2/dist/';
+        return initSqlJs({ locateFile: function(file) { return base + file; } }).then(function(SQL) {
+            var saved = localStorage.getItem('florChocolateSqlite');
+            if (saved) {
+                try {
+                    var bytes = atob(saved);
+                    var buf = new Uint8Array(bytes.length);
+                    for (var i = 0; i < bytes.length; i++) buf[i] = bytes.charCodeAt(i);
+                    florDb = new SQL.Database(buf);
+                } catch (e) { florDb = new SQL.Database(); }
+            } else {
+                florDb = new SQL.Database();
+            }
+            florDb.run('CREATE TABLE IF NOT EXISTS produtos (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT, preco REAL, descricao TEXT, sabores TEXT, personalizavel INTEGER, imagem TEXT, destaque INTEGER)');
+            florDb.run('CREATE TABLE IF NOT EXISTS promocoes (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT, badge TEXT, emoji TEXT, preco_original REAL, preco_promocao REAL, descricao TEXT)');
+            var r = florDb.exec('SELECT COUNT(*) FROM produtos');
+            var n = r.length && r[0].values && r[0].values[0] ? r[0].values[0][0] : 0;
+            if (n === 0) {
+                var oldP = localStorage.getItem('produtosFlorChocolate');
+                if (oldP) {
+                    try {
+                        var arr = JSON.parse(oldP);
+                        var stmt = florDb.prepare('INSERT INTO produtos (nome, preco, descricao, sabores, personalizavel, imagem, destaque) VALUES (?,?,?,?,?,?,?)');
+                        for (var i = 0; i < arr.length; i++) {
+                            var p = arr[i];
+                            stmt.run([p.nome || '', p.preco || 0, p.descricao || '', JSON.stringify(p.sabores || []), p.personalizavel ? 1 : 0, p.imagem || null, p.destaque ? 1 : 0]);
+                        }
+                        stmt.free();
+                    } catch (e) {}
+                }
+            }
+            r = florDb.exec('SELECT COUNT(*) FROM promocoes');
+            n = r.length && r[0].values && r[0].values[0] ? r[0].values[0][0] : 0;
+            if (n === 0) {
+                var oldPr = localStorage.getItem('promocoesFlorChocolate');
+                if (oldPr) {
+                    try {
+                        var arr = JSON.parse(oldPr);
+                        var stmt = florDb.prepare('INSERT INTO promocoes (nome, badge, emoji, preco_original, preco_promocao, descricao) VALUES (?,?,?,?,?,?)');
+                        for (var j = 0; j < arr.length; j++) {
+                            var pr = arr[j];
+                            stmt.run([pr.nome || '', pr.badge || '', pr.emoji || '🍰', pr.precoOriginal != null ? pr.precoOriginal : 0, pr.precoPromocao != null ? pr.precoPromocao : 0, pr.descricao || '']);
+                        }
+                        stmt.free();
+                    } catch (e) {}
+                }
+            }
+            return florDb;
+        }).catch(function() { return null; });
+    })();
+    return florDbReady;
+}
+
+function dbGetProdutos() {
+    if (!florDb) return [];
+    var r = florDb.exec('SELECT id, nome, preco, descricao, sabores, personalizavel, imagem, destaque FROM produtos ORDER BY id');
+    if (!r.length || !r[0].values) return [];
+    var out = [];
+    for (var i = 0; i < r[0].values.length; i++) {
+        var row = r[0].values[i];
+        out.push({
+            id: row[0],
+            nome: row[1] || '',
+            preco: row[2] != null ? row[2] : 0,
+            descricao: row[3] || '',
+            sabores: (function() { try { return JSON.parse(row[4] || '[]'); } catch (e) { return []; } })(),
+            personalizavel: !!row[5],
+            imagem: row[6] || null,
+            destaque: !!row[7]
+        });
+    }
+    return out;
+}
+
+function dbSetProdutos(arr) {
+    if (!florDb) return;
+    florDb.run('DELETE FROM produtos');
+    var stmt = florDb.prepare('INSERT INTO produtos (nome, preco, descricao, sabores, personalizavel, imagem, destaque) VALUES (?,?,?,?,?,?,?)');
+    for (var i = 0; i < arr.length; i++) {
+        var p = arr[i];
+        stmt.run([p.nome || '', p.preco != null ? p.preco : 0, p.descricao || '', JSON.stringify(p.sabores || []), p.personalizavel ? 1 : 0, p.imagem || null, p.destaque ? 1 : 0]);
+    }
+    stmt.free();
+}
+
+function dbGetPromocoes() {
+    if (!florDb) return [];
+    var r = florDb.exec('SELECT id, nome, badge, emoji, preco_original, preco_promocao, descricao FROM promocoes ORDER BY id');
+    if (!r.length || !r[0].values) return [];
+    var out = [];
+    for (var i = 0; i < r[0].values.length; i++) {
+        var row = r[0].values[i];
+        out.push({
+            id: row[0],
+            nome: row[1] || '',
+            badge: row[2] || '',
+            emoji: row[3] || '🍰',
+            precoOriginal: row[4] != null ? row[4] : 0,
+            precoPromocao: row[5] != null ? row[5] : 0,
+            descricao: row[6] || ''
+        });
+    }
+    return out;
+}
+
+function dbSetPromocoes(arr) {
+    if (!florDb) return;
+    florDb.run('DELETE FROM promocoes');
+    var stmt = florDb.prepare('INSERT INTO promocoes (nome, badge, emoji, preco_original, preco_promocao, descricao) VALUES (?,?,?,?,?,?)');
+    for (var i = 0; i < arr.length; i++) {
+        var pr = arr[i];
+        stmt.run([pr.nome || '', pr.badge || '', pr.emoji || '🍰', pr.precoOriginal != null ? pr.precoOriginal : 0, pr.precoPromocao != null ? pr.precoPromocao : 0, pr.descricao || '']);
+    }
+    stmt.free();
+}
+
+function dbPersist() {
+    if (!florDb) return;
+    try {
+        var data = florDb.export();
+        var b64 = btoa(String.fromCharCode.apply(null, new Uint8Array(data)));
+        localStorage.setItem('florChocolateSqlite', b64);
+    } catch (e) {}
+}
 
 // Detecta se é dispositivo móvel
 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -758,11 +905,11 @@ function editarProduto(index) {
                 </div>
                 <div class="form-group">
                     <label>Nova Imagem do Produto (opcional)</label>
-                    <input type="file" id="editImagem" accept="image/*" onchange="previewImagem(this, 'previewEditImagem')">
+                    <input type="file" id="editImagem" accept="image/*" onchange="window.previewImagem(this, 'previewEditImagem')">
                     <div id="previewEditImagem" class="imagem-preview" style="display: none; margin-top: 10px;">
                         <p style="font-weight: 600; color: var(--chocolate-dark); margin-bottom: 10px;">Nova Imagem:</p>
                         <img id="imgPreviewEdit" src="" alt="Preview" style="max-width: 200px; max-height: 200px; border-radius: 10px; border: 2px solid var(--chocolate-light);">
-                        <button type="button" onclick="removerPreview('previewEditImagem', 'editImagem')" style="margin-top: 10px; padding: 5px 15px; background: #E53935; color: white; border: none; border-radius: 5px; cursor: pointer;">Remover Nova Imagem</button>
+                        <button type="button" class="btn-remover-imagem" onclick="window.removerPreview('previewEditImagem', 'editImagem')">Remover Nova Imagem</button>
                     </div>
                     ${imagemAtualHTML}
                 </div>
@@ -815,15 +962,14 @@ function editarProduto(index) {
         if (saboresVal) saboresArray = saboresVal.split(',').map(function(s) { return s.trim(); }).filter(Boolean);
 
         if (fileInput && fileInput.files && fileInput.files[0]) {
-            var reader = new FileReader();
-            reader.onload = function(ev) {
+            comprimirImagemParaProduto(fileInput.files[0], function(imagemData) {
                 produtos[index] = {
                     nome: nomeVal,
                     preco: precoVal,
                     descricao: descVal,
                     sabores: saboresArray,
                     personalizavel: personalizavelVal,
-                    imagem: ev.target.result,
+                    imagem: imagemData || produto.imagem,
                     destaque: !!destaqueVal
                 };
                 salvarProdutos();
@@ -832,8 +978,7 @@ function editarProduto(index) {
                 atualizarListaProdutosAdmin();
                 fecharModalEditar();
                 if (typeof mostrarMensagemCarrinho === 'function') mostrarMensagemCarrinho('Produto atualizado com sucesso! ✅');
-            };
-            reader.readAsDataURL(fileInput.files[0]);
+            });
         } else {
             produtos[index] = {
                 nome: nomeVal,
@@ -865,39 +1010,95 @@ function fecharModalEditar() {
 }
 
 /**
- * Preview da imagem antes de salvar
+ * Comprime imagem para caber no banco (celular: menor tamanho; evita estourar localStorage)
+ * maxWidth 600, qualidade JPEG 0.75. Retorna Promise com data URL ou null em erro.
+ */
+function comprimirImagemParaProduto(file, callback) {
+    if (!file || !file.type || file.type.indexOf('image') !== 0) {
+        if (callback) callback(null);
+        return;
+    }
+    var img = new Image();
+    var url = (typeof URL !== 'undefined' && URL.createObjectURL) ? URL.createObjectURL(file) : null;
+    if (!url) {
+        var fr = new FileReader();
+        fr.onload = function() { img.src = fr.result; };
+        fr.readAsDataURL(file);
+    } else {
+        img.src = url;
+    }
+    img.onload = function() {
+        var maxW = 600;
+        var w = img.naturalWidth || img.width;
+        var h = img.naturalHeight || img.height;
+        if (w <= maxW) { maxW = w; }
+        var scale = maxW / w;
+        var cw = Math.round(w * scale);
+        var ch = Math.round(h * scale);
+        var canvas = document.createElement('canvas');
+        canvas.width = cw;
+        canvas.height = ch;
+        var ctx = canvas.getContext('2d');
+        if (!ctx) { if (callback) callback(null); return; }
+        ctx.drawImage(img, 0, 0, cw, ch);
+        if (url && URL.revokeObjectURL) URL.revokeObjectURL(url);
+        try {
+            canvas.toBlob(function(blob) {
+                if (!blob) { if (callback) callback(null); return; }
+                var fr2 = new FileReader();
+                fr2.onload = function() { if (callback) callback(fr2.result); };
+                fr2.readAsDataURL(blob);
+            }, 'image/jpeg', 0.75);
+        } catch (e) {
+            if (callback) callback(null);
+        }
+    };
+    img.onerror = function() {
+        if (url && URL.revokeObjectURL) URL.revokeObjectURL(url);
+        if (callback) callback(null);
+    };
+}
+
+/**
+ * Preview da imagem antes de salvar (funciona em celular e desktop)
  */
 function previewImagem(input, previewId) {
-    if (input.files && input.files[0]) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            const preview = document.getElementById(previewId);
-            const img = preview.querySelector('img');
-            if (img) {
-                img.src = e.target.result;
-                preview.style.display = 'block';
-            }
-        };
-        reader.readAsDataURL(input.files[0]);
+    if (!input || !input.files || !input.files[0]) return;
+    var preview = document.getElementById(previewId);
+    if (!preview) return;
+    var img = preview.querySelector('img');
+    if (!img) {
+        img = document.createElement('img');
+        img.alt = 'Preview';
+        img.style.maxWidth = '200px';
+        img.style.maxHeight = '200px';
+        img.style.borderRadius = '10px';
+        preview.appendChild(img);
     }
+    var reader = new FileReader();
+    reader.onload = function(e) {
+        img.src = e.target.result;
+        preview.style.display = 'block';
+    };
+    reader.onerror = function() {
+        preview.style.display = 'block';
+        img.alt = 'Erro ao carregar. Tente outra imagem.';
+    };
+    reader.readAsDataURL(input.files[0]);
 }
 
 /**
  * Remove o preview da imagem
  */
 function removerPreview(previewId, inputId) {
-    const preview = document.getElementById(previewId);
-    const input = document.getElementById(inputId);
+    var preview = document.getElementById(previewId);
+    var input = inputId ? document.getElementById(inputId) : null;
     if (preview) {
         preview.style.display = 'none';
-        const img = preview.querySelector('img');
-        if (img) {
-            img.src = '';
-        }
+        var img = preview.querySelector('img');
+        if (img) img.src = '';
     }
-    if (input) {
-        input.value = '';
-    }
+    if (input) input.value = '';
 }
 
 /**
@@ -1045,26 +1246,32 @@ function excluirPromocao(index) {
 }
 
 /**
- * Carrega produtos do localStorage
+ * Carrega produtos (SQLite ou localStorage/cache)
  */
 function carregarProdutos() {
-    // Primeiro tenta carregar do cache
-    const produtosCache = cacheManager.getFromCache('produtos');
-    if (produtosCache && Array.isArray(produtosCache)) {
+    if (florDb) {
+        var lista = dbGetProdutos();
         produtos.length = 0;
-        produtos.push(...produtosCache);
+        for (var i = 0; i < lista.length; i++) {
+            var p = lista[i];
+            delete p.id;
+            produtos.push(p);
+        }
+        cacheManager.saveToCache('produtos', produtos);
         return;
     }
-
-    // Se não tem cache, carrega do localStorage
-    const produtosSalvos = localStorage.getItem('produtosFlorChocolate');
+    var produtosCache = cacheManager.getFromCache('produtos');
+    if (produtosCache && Array.isArray(produtosCache)) {
+        produtos.length = 0;
+        produtos.push.apply(produtos, produtosCache);
+        return;
+    }
+    var produtosSalvos = localStorage.getItem('produtosFlorChocolate');
     if (produtosSalvos) {
         try {
-            const produtosCarregados = JSON.parse(produtosSalvos);
+            var produtosCarregados = JSON.parse(produtosSalvos);
             produtos.length = 0;
-            produtos.push(...produtosCarregados);
-            
-            // Salva no cache para próximas cargas
+            produtos.push.apply(produtos, produtosCarregados);
             cacheManager.saveToCache('produtos', produtos);
         } catch (e) {
             console.error('Erro ao carregar produtos:', e);
@@ -1073,25 +1280,39 @@ function carregarProdutos() {
 }
 
 /**
- * Salva produtos no localStorage e cache
+ * Salva produtos (SQLite ou localStorage e cache)
  */
 function salvarProdutos() {
-    localStorage.setItem('produtosFlorChocolate', JSON.stringify(produtos));
+    if (florDb) {
+        dbSetProdutos(produtos);
+        dbPersist();
+    } else {
+        localStorage.setItem('produtosFlorChocolate', JSON.stringify(produtos));
+    }
     cacheManager.saveToCache('produtos', produtos);
-    sincronizarDadosRemotos();
 }
 
 /**
- * Carrega promoções do localStorage
+ * Carrega promoções (SQLite ou localStorage)
  */
 function carregarPromocoes() {
-    const dados = localStorage.getItem('promocoesFlorChocolate');
+    if (florDb) {
+        var lista = dbGetPromocoes();
+        promocoes.length = 0;
+        for (var i = 0; i < lista.length; i++) {
+            var p = lista[i];
+            delete p.id;
+            promocoes.push(p);
+        }
+        return;
+    }
+    var dados = localStorage.getItem('promocoesFlorChocolate');
     if (dados) {
         try {
-            const lista = JSON.parse(dados);
+            var lista = JSON.parse(dados);
             if (Array.isArray(lista)) {
                 promocoes.length = 0;
-                promocoes.push(...lista);
+                promocoes.push.apply(promocoes, lista);
             }
         } catch (e) {
             console.error('Erro ao carregar promoções:', e);
@@ -1100,15 +1321,19 @@ function carregarPromocoes() {
 }
 
 /**
- * Salva promoções no localStorage
+ * Salva promoções (SQLite ou localStorage)
  */
 function salvarPromocoes() {
-    localStorage.setItem('promocoesFlorChocolate', JSON.stringify(promocoes));
+    if (florDb) {
+        dbSetPromocoes(promocoes);
+        dbPersist();
+    } else {
+        localStorage.setItem('promocoesFlorChocolate', JSON.stringify(promocoes));
+    }
     renderizarPromocoes();
     if (typeof atualizarListaPromocoesAdmin === 'function') {
         atualizarListaPromocoesAdmin();
     }
-    sincronizarDadosRemotos();
 }
 
 /**
@@ -1136,71 +1361,6 @@ function carregarDadosRemotos() {
         })
         .catch(() => {});
 }
-
-/** Banco Firestore (quando CONFIG.firebase está definido) */
-let dbFirestore = null;
-
-/**
- * Inicializa Firebase e carrega produtos e promoções do Firestore para todos verem o mesmo.
- * Usa listener em tempo real: quando você edita ou cadastra um produto, quem está acessando de outro lugar vê a alteração.
- */
-function initFirebaseAndLoad() {
-    if (!CONFIG.firebase || typeof firebase === 'undefined') return;
-    var config = CONFIG.firebase;
-    if (!config || !config.apiKey || config.apiKey === 'SEU_API_KEY') return;
-    try {
-        if (!firebase.apps || !firebase.apps.length) {
-            firebase.initializeApp(config);
-        }
-        dbFirestore = firebase.firestore();
-        var ref = dbFirestore.collection('site').doc('dados');
-
-        function aplicarDadosRemotos(d) {
-            if (d.produtos && Array.isArray(d.produtos)) {
-                produtos.length = 0;
-                produtos.push(...d.produtos);
-                localStorage.setItem('produtosFlorChocolate', JSON.stringify(produtos));
-                if (typeof cacheManager !== 'undefined' && cacheManager.saveToCache) cacheManager.saveToCache('produtos', produtos);
-                if (typeof renderizarProdutos === 'function') renderizarProdutos();
-            }
-            if (d.promocoes && Array.isArray(d.promocoes)) {
-                promocoes.length = 0;
-                promocoes.push(...d.promocoes);
-                localStorage.setItem('promocoesFlorChocolate', JSON.stringify(promocoes));
-                if (typeof renderizarPromocoes === 'function') renderizarPromocoes();
-                if (typeof atualizarListaPromocoesAdmin === 'function') atualizarListaPromocoesAdmin();
-            }
-        }
-
-        ref.onSnapshot(function(snap) {
-            if (snap.exists) {
-                aplicarDadosRemotos(snap.data());
-            }
-        }, function() {});
-
-        ref.get().then(function(doc) {
-            if (doc.exists) {
-                aplicarDadosRemotos(doc.data());
-            }
-        }).catch(function() {});
-    } catch (e) {
-        console.warn('Firebase:', e);
-    }
-}
-
-/**
- * Envia produtos e promoções para o Firestore quando o admin salva, para todos verem as alterações.
- */
-function sincronizarDadosRemotos() {
-    if (!dbFirestore) return;
-    try {
-        dbFirestore.collection('site').doc('dados').set({
-            produtos: produtos,
-            promocoes: promocoes
-        }).catch(function() {});
-    } catch (e) {}
-}
-
 
 /**
  * Carrega o carrinho do localStorage e cache
@@ -2823,9 +2983,9 @@ function executarAdicionarProduto() {
         if (typeof mostrarMensagemCarrinho === 'function') mostrarMensagemCarrinho('Produto adicionado com sucesso! ✅');
     }
     if (fileInput && fileInput.files && fileInput.files[0]) {
-        var reader = new FileReader();
-        reader.onload = function(ev) { salvarComImagem(ev.target.result); };
-        reader.readAsDataURL(fileInput.files[0]);
+        comprimirImagemParaProduto(fileInput.files[0], function(imagemData) {
+            salvarComImagem(imagemData);
+        });
     } else {
         salvarComImagem(null);
     }
@@ -2896,7 +3056,6 @@ document.addEventListener('DOMContentLoaded', function() {
     try {
     // Carrega produtos do localStorage
     carregarProdutos();
-    
     // Inicializa sistema de autenticação
     inicializarAuth();
     
