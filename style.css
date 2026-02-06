@@ -2801,6 +2801,15 @@ section {
     font-weight: 700;
 }
 
+.painel-admin-aviso-nuvem {
+    width: 100%;
+    flex-basis: 100%;
+    margin: 8px 0 0;
+    font-size: 0.9rem;
+    opacity: 0.95;
+    font-weight: 400;
+}
+
 .painel-admin-stats {
     display: flex;
     gap: 30px;

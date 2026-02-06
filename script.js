@@ -899,7 +899,7 @@ function editarProduto(index) {
                 renderizarPromocoes();
                 atualizarListaProdutosAdmin();
                 fecharModalEditar();
-                if (typeof mostrarMensagemCarrinho === 'function') mostrarMensagemCarrinho('Produto atualizado com sucesso! ✅');
+                if (typeof mostrarMensagemCarrinho === 'function') mostrarMensagemCarrinho('Produto atualizado! Salvo na nuvem — todos verão. ✅');
             });
         } else {
             produtos[index] = {
@@ -916,7 +916,7 @@ function editarProduto(index) {
             renderizarPromocoes();
             atualizarListaProdutosAdmin();
             fecharModalEditar();
-            if (typeof mostrarMensagemCarrinho === 'function') mostrarMensagemCarrinho('Produto atualizado com sucesso! ✅');
+            if (typeof mostrarMensagemCarrinho === 'function') mostrarMensagemCarrinho('Produto atualizado! Salvo na nuvem — todos verão. ✅');
         }
     });
 }
@@ -1032,7 +1032,7 @@ function excluirProduto(index) {
         salvarProdutos();
         renderizarProdutos();
         atualizarListaProdutosAdmin();
-        mostrarMensagemCarrinho('Produto excluído! ✅');
+        mostrarMensagemCarrinho('Produto excluído! Alteração salva na nuvem. ✅');
     }
 }
 
@@ -1143,7 +1143,7 @@ function editarPromocao(index) {
         promocoes[index] = { nome, badge, emoji, precoOriginal, precoPromocao, descricao };
         salvarPromocoes();
         fecharModalEditarPromocao();
-        mostrarMensagemCarrinho('Promoção atualizada com sucesso! ✅');
+        mostrarMensagemCarrinho('Promoção atualizada! Salvo na nuvem — todos verão. ✅');
     });
 }
 
@@ -1163,7 +1163,7 @@ function excluirPromocao(index) {
         promocoes.splice(index, 1);
         salvarPromocoes();
         atualizarListaPromocoesAdmin();
-        mostrarMensagemCarrinho('Promoção excluída! ✅');
+        mostrarMensagemCarrinho('Promoção excluída! Alteração salva na nuvem. ✅');
     }
 }
 
@@ -1203,7 +1203,7 @@ function salvarProdutos() {
     })
         .then(function(r) { return r.ok ? r.json() : Promise.reject(); })
         .then(function() {
-            if (typeof mostrarMensagemCarrinho === 'function') mostrarMensagemCarrinho('Salvo na nuvem! ✅');
+            if (typeof mostrarMensagemCarrinho === 'function') mostrarMensagemCarrinho('Salvo na nuvem! Todos que acessarem o site verão as alterações. ✅');
         })
         .catch(function() {
             if (typeof mostrarMensagem === 'function') mostrarMensagem('Falha ao salvar na nuvem. Verifique api/config/jsonbin.php.', 'error');
@@ -1248,7 +1248,7 @@ function salvarPromocoes() {
     })
         .then(function(r) { return r.ok ? r.json() : Promise.reject(); })
         .then(function() {
-            if (typeof mostrarMensagemCarrinho === 'function') mostrarMensagemCarrinho('Salvo na nuvem! ✅');
+            if (typeof mostrarMensagemCarrinho === 'function') mostrarMensagemCarrinho('Salvo na nuvem! Todos que acessarem o site verão as alterações. ✅');
         })
         .catch(function() {
             if (typeof mostrarMensagem === 'function') mostrarMensagem('Falha ao salvar na nuvem. Verifique api/config/jsonbin.php.', 'error');
@@ -2899,7 +2899,7 @@ function executarAdicionarProduto() {
         form.reset();
         var preview = document.getElementById('previewNovaImagem');
         if (preview) { preview.style.display = 'none'; var img = preview.querySelector('img'); if (img) img.src = ''; }
-        if (typeof mostrarMensagemCarrinho === 'function') mostrarMensagemCarrinho('Produto adicionado com sucesso! ✅');
+        if (typeof mostrarMensagemCarrinho === 'function') mostrarMensagemCarrinho('Produto adicionado! Salvo na nuvem — todos verão. ✅');
     }
     if (fileInput && fileInput.files && fileInput.files[0]) {
         comprimirImagemParaProduto(fileInput.files[0], function(imagemData) {
@@ -2943,15 +2943,10 @@ function executarAdicionarPromocao() {
         }
         lista.push({ nome: nome, badge: badge, emoji: emoji, precoOriginal: precoOriginal, precoPromocao: precoPromocao, descricao: descricao });
         if (typeof salvarPromocoes === 'function') salvarPromocoes();
-        else {
-            try {
-                localStorage.setItem('promocoesFlorChocolate', JSON.stringify(lista));
-                if (typeof renderizarPromocoes === 'function') renderizarPromocoes();
-                if (typeof atualizarListaPromocoesAdmin === 'function') atualizarListaPromocoesAdmin();
-            } catch (e) {}
-        }
+        if (typeof renderizarPromocoes === 'function') renderizarPromocoes();
+        if (typeof atualizarListaPromocoesAdmin === 'function') atualizarListaPromocoesAdmin();
         form.reset();
-        if (typeof mostrarMensagemCarrinho === 'function') mostrarMensagemCarrinho('Promoção adicionada com sucesso! ✅');
+        if (typeof mostrarMensagemCarrinho === 'function') mostrarMensagemCarrinho('Promoção adicionada! Salvo na nuvem — todos verão. ✅');
     } catch (err) {
         console.error('executarAdicionarPromocao:', err);
         if (typeof mostrarMensagem === 'function') mostrarMensagem('Erro ao adicionar promoção. Tente novamente.', 'error');
