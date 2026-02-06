@@ -118,9 +118,17 @@ const CONFIG = {
     cacheVersion: 'v2.1',
     enableAnalytics: true,
     enableNotifications: true,
-    // Sincronização para todos: defina com o config do Firebase (Console > Projeto > Configurações do projeto).
-    // Assim, ao editar ou adicionar produto, todos os visitantes veem as alterações.
-    firebase: null,
+    // Sincronização para todos: preencha com os dados do seu projeto no Firebase Console (https://console.firebase.google.com).
+    // Assim, ao editar ou cadastrar um produto, todos que acessam de outro lugar veem as alterações.
+    // Se não quiser usar Firebase, deixe null.
+    firebase: {
+        apiKey: 'SEU_API_KEY',
+        authDomain: 'SEU_PROJECT_ID.firebaseapp.com',
+        projectId: 'SEU_PROJECT_ID',
+        storageBucket: 'SEU_PROJECT_ID.appspot.com',
+        messagingSenderId: 'SEU_SENDER_ID',
+        appId: 'SEU_APP_ID'
+    },
     dadosUrl: null
 };
 
@@ -1134,29 +1142,45 @@ let dbFirestore = null;
 
 /**
  * Inicializa Firebase e carrega produtos e promoções do Firestore para todos verem o mesmo.
- * Defina CONFIG.firebase com: { apiKey, authDomain, projectId, storageBucket, messagingSenderId, appId }
+ * Usa listener em tempo real: quando você edita ou cadastra um produto, quem está acessando de outro lugar vê a alteração.
  */
 function initFirebaseAndLoad() {
     if (!CONFIG.firebase || typeof firebase === 'undefined') return;
+    var config = CONFIG.firebase;
+    if (!config || !config.apiKey || config.apiKey === 'SEU_API_KEY') return;
     try {
-        firebase.initializeApp(CONFIG.firebase);
+        if (!firebase.apps || !firebase.apps.length) {
+            firebase.initializeApp(config);
+        }
         dbFirestore = firebase.firestore();
-        dbFirestore.collection('site').doc('dados').get().then(function(doc) {
+        var ref = dbFirestore.collection('site').doc('dados');
+
+        function aplicarDadosRemotos(d) {
+            if (d.produtos && Array.isArray(d.produtos)) {
+                produtos.length = 0;
+                produtos.push(...d.produtos);
+                localStorage.setItem('produtosFlorChocolate', JSON.stringify(produtos));
+                if (typeof cacheManager !== 'undefined' && cacheManager.saveToCache) cacheManager.saveToCache('produtos', produtos);
+                if (typeof renderizarProdutos === 'function') renderizarProdutos();
+            }
+            if (d.promocoes && Array.isArray(d.promocoes)) {
+                promocoes.length = 0;
+                promocoes.push(...d.promocoes);
+                localStorage.setItem('promocoesFlorChocolate', JSON.stringify(promocoes));
+                if (typeof renderizarPromocoes === 'function') renderizarPromocoes();
+                if (typeof atualizarListaPromocoesAdmin === 'function') atualizarListaPromocoesAdmin();
+            }
+        }
+
+        ref.onSnapshot(function(snap) {
+            if (snap.exists) {
+                aplicarDadosRemotos(snap.data());
+            }
+        }, function() {});
+
+        ref.get().then(function(doc) {
             if (doc.exists) {
-                const d = doc.data();
-                if (d.produtos && Array.isArray(d.produtos)) {
-                    produtos.length = 0;
-                    produtos.push(...d.produtos);
-                    localStorage.setItem('produtosFlorChocolate', JSON.stringify(produtos));
-                    cacheManager.saveToCache('produtos', produtos);
-                    renderizarProdutos();
-                }
-                if (d.promocoes && Array.isArray(d.promocoes)) {
-                    promocoes.length = 0;
-                    promocoes.push(...d.promocoes);
-                    localStorage.setItem('promocoesFlorChocolate', JSON.stringify(promocoes));
-                    renderizarPromocoes();
-                }
+                aplicarDadosRemotos(doc.data());
             }
         }).catch(function() {});
     } catch (e) {
@@ -2811,29 +2835,50 @@ function executarAdicionarProduto() {
  * Executa a lógica de adicionar promoção (lê o form e adiciona ao array global).
  */
 function executarAdicionarPromocao() {
-    var form = document.getElementById('formAdicionarPromocao');
-    if (!form) return;
-    var nomeEl = form.querySelector('#promocaoNome');
-    var badgeEl = form.querySelector('#promocaoBadge');
-    var precoOrigEl = form.querySelector('#promocaoPrecoOriginal');
-    var precoPromoEl = form.querySelector('#promocaoPrecoPromocao');
-    var emojiEl = form.querySelector('#promocaoEmoji');
-    var descricaoEl = form.querySelector('#promocaoDescricao');
-    var nome = nomeEl ? nomeEl.value.trim() : '';
-    var badge = badgeEl ? badgeEl.value.trim() || 'Destaque' : 'Destaque';
-    var precoOriginal = precoOrigEl ? parseFloat(precoOrigEl.value) : NaN;
-    var precoPromocao = precoPromoEl ? parseFloat(precoPromoEl.value) : NaN;
-    var emoji = (emojiEl && emojiEl.value.trim()) ? emojiEl.value.trim() : '🍰';
-    var descricao = descricaoEl ? descricaoEl.value.trim() : '';
-    if (!nome || !descricao || isNaN(precoOriginal) || isNaN(precoPromocao) || precoPromocao <= 0) {
-        if (typeof mostrarMensagem === 'function') mostrarMensagem('Preencha Nome, Descrição e os dois preços.', 'error');
-        return;
+    try {
+        var form = document.getElementById('formAdicionarPromocao');
+        if (!form) {
+            if (typeof mostrarMensagem === 'function') mostrarMensagem('Formulário não encontrado.', 'error');
+            return;
+        }
+        var nomeEl = form.querySelector('#promocaoNome');
+        var badgeEl = form.querySelector('#promocaoBadge');
+        var precoOrigEl = form.querySelector('#promocaoPrecoOriginal');
+        var precoPromoEl = form.querySelector('#promocaoPrecoPromocao');
+        var emojiEl = form.querySelector('#promocaoEmoji');
+        var descricaoEl = form.querySelector('#promocaoDescricao');
+        var nome = nomeEl ? String(nomeEl.value || '').trim() : '';
+        var badge = badgeEl ? String(badgeEl.value || '').trim() || 'Destaque' : 'Destaque';
+        var precoOriginal = precoOrigEl ? parseFloat(precoOrigEl.value) : NaN;
+        var precoPromocao = precoPromoEl ? parseFloat(precoPromoEl.value) : NaN;
+        var emoji = (emojiEl && emojiEl.value) ? String(emojiEl.value).trim() || '🍰' : '🍰';
+        var descricao = descricaoEl ? String(descricaoEl.value || '').trim() : '';
+        if (!nome || !descricao || isNaN(precoOriginal) || isNaN(precoPromocao) || precoPromocao <= 0) {
+            if (typeof mostrarMensagem === 'function') mostrarMensagem('Preencha Nome, Descrição e os dois preços.', 'error');
+            return;
+        }
+        var lista = window.promocoes;
+        if (!Array.isArray(lista)) {
+            window.promocoes = [];
+            lista = window.promocoes;
+        }
+        lista.push({ nome: nome, badge: badge, emoji: emoji, precoOriginal: precoOriginal, precoPromocao: precoPromocao, descricao: descricao });
+        if (typeof salvarPromocoes === 'function') salvarPromocoes();
+        else {
+            try {
+                localStorage.setItem('promocoesFlorChocolate', JSON.stringify(lista));
+                if (typeof renderizarPromocoes === 'function') renderizarPromocoes();
+                if (typeof atualizarListaPromocoesAdmin === 'function') atualizarListaPromocoesAdmin();
+            } catch (e) {}
+        }
+        form.reset();
+        if (typeof mostrarMensagemCarrinho === 'function') mostrarMensagemCarrinho('Promoção adicionada com sucesso! ✅');
+    } catch (err) {
+        console.error('executarAdicionarPromocao:', err);
+        if (typeof mostrarMensagem === 'function') mostrarMensagem('Erro ao adicionar promoção. Tente novamente.', 'error');
     }
-    promocoes.push({ nome: nome, badge: badge, emoji: emoji, precoOriginal: precoOriginal, precoPromocao: precoPromocao, descricao: descricao });
-    if (typeof salvarPromocoes === 'function') salvarPromocoes();
-    form.reset();
-    if (typeof mostrarMensagemCarrinho === 'function') mostrarMensagemCarrinho('Promoção adicionada com sucesso! ✅');
 }
+window.executarAdicionarPromocao = executarAdicionarPromocao;
 
 /**
  * Registra os formulários do admin (Adicionar Produto e Adicionar Promoção).

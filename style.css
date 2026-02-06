@@ -120,15 +120,36 @@ body {
     min-height: 100vh;
     min-height: -webkit-fill-available;
 }
-/* Mobile: evita tela branca e melhora scroll */
+/* ============================================
+   CELULAR - Base para todos os tamanhos pequenos
+   ============================================ */
 @media (max-width: 768px) {
+    html {
+        font-size: 16px;
+        -webkit-text-size-adjust: 100%;
+        min-height: 100%;
+    }
     html, body {
         min-height: 100vh;
         min-height: 100dvh;
         background-attachment: scroll;
+        width: 100%;
+        overflow-x: hidden;
+        margin: 0;
+        padding: 0;
     }
     body {
         -webkit-overflow-scrolling: touch;
+        box-sizing: border-box;
+    }
+    body *, body *::before, body *::after {
+        box-sizing: border-box;
+    }
+    .container {
+        width: 100%;
+        max-width: 100%;
+        padding: 0 16px;
+        margin: 0 auto;
     }
     .painel-admin-content {
         overflow-y: auto;
@@ -144,8 +165,74 @@ body {
         cursor: pointer;
         -webkit-tap-highlight-color: transparent;
     }
+    .form-admin button[type="button"],
     .form-admin button[type="submit"] {
         min-height: 48px;
+    }
+}
+
+/* Celular pequeno (até 480px) */
+@media (max-width: 480px) {
+    .container {
+        padding: 0 12px;
+    }
+    .header .container {
+        padding: 0 12px;
+    }
+    .hero-title {
+        font-size: 1.75rem !important;
+    }
+    .hero-subtitle {
+        font-size: 0.95rem !important;
+    }
+    .section-title {
+        font-size: 1.75rem !important;
+    }
+    .promocoes-grid {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 20px !important;
+        padding: 0 12px !important;
+    }
+    .promocao-card {
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+    .modal-login-content,
+    .modal-compra-content,
+    .modal-carrinho-content {
+        width: 95% !important;
+        max-width: 95% !important;
+        margin: 10px !important;
+    }
+}
+
+/* Celular: inputs com 16px para não dar zoom no iOS */
+@media (max-width: 768px) {
+    input[type="text"],
+    input[type="number"],
+    input[type="email"],
+    input[type="password"],
+    input[type="tel"],
+    textarea,
+    select {
+        font-size: 16px !important;
+    }
+}
+
+/* Safe-area para celulares com notch (iPhone X+) */
+@supports (padding: max(0px)) {
+    body {
+        padding-left: max(0px, env(safe-area-inset-left));
+        padding-right: max(0px, env(safe-area-inset-right));
+    }
+    .header .container {
+        padding-left: max(16px, env(safe-area-inset-left));
+        padding-right: max(16px, env(safe-area-inset-right));
+    }
+    .container {
+        padding-left: max(16px, env(safe-area-inset-left));
+        padding-right: max(16px, env(safe-area-inset-right));
     }
 }
 
