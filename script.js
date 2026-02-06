@@ -2560,64 +2560,53 @@ document.addEventListener('DOMContentLoaded', () => {
             const nome = document.getElementById('produtoNome').value.trim();
             const preco = parseFloat(document.getElementById('produtoPreco').value);
             const descricao = document.getElementById('produtoDescricao').value.trim();
-            const sabores = document.getElementById('produtoSabores').value.trim();
-            const personalizavel = document.getElementById('produtoPersonalizavel').checked;
             const fileInput = document.getElementById('produtoImagem');
-            
+            // Campos opcionais (podem não existir no HTML)
+            const elSabores = document.getElementById('produtoSabores');
+            const elPersonalizavel = document.getElementById('produtoPersonalizavel');
+            const sabores = elSabores ? elSabores.value.trim() : '';
+            const personalizavel = elPersonalizavel ? elPersonalizavel.checked : false;
+
             if (!nome || !descricao || isNaN(preco) || preco <= 0) {
                 mostrarMensagem('Por favor, preencha todos os campos obrigatórios!', 'error');
                 return;
             }
-            
-            // Processa os sabores
+
             let saboresArray = [];
             if (sabores) {
                 saboresArray = sabores.split(',').map(sabor => sabor.trim()).filter(sabor => sabor.length > 0);
             }
-            
-            // Processa a imagem se houver
-            if (fileInput.files && fileInput.files[0]) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    produtos.push({
-                        nome,
-                        preco,
-                        descricao,
-                        sabores: saboresArray,
-                        personalizavel: personalizavel,
-                        imagem: e.target.result // Salva como data URL (base64)
-                    });
-                    
-                    salvarProdutos();
-                    renderizarProdutos();
-                    atualizarListaProdutosAdmin();
-                    formAdicionarProduto.reset();
-                    // Limpa o preview
-                    const preview = document.getElementById('previewNovaImagem');
-                    if (preview) {
-                        preview.style.display = 'none';
-                        const img = preview.querySelector('img');
-                        if (img) img.src = '';
-                    }
-                    mostrarMensagemCarrinho('Produto adicionado com sucesso! ✅');
-                };
-                reader.readAsDataURL(fileInput.files[0]);
-            } else {
-                // Adiciona sem imagem
+
+            const salvarComImagem = (imagemData) => {
                 produtos.push({
                     nome,
                     preco,
                     descricao,
                     sabores: saboresArray,
                     personalizavel: personalizavel,
-                    imagem: null
+                    imagem: imagemData
                 });
-                
                 salvarProdutos();
                 renderizarProdutos();
                 atualizarListaProdutosAdmin();
                 formAdicionarProduto.reset();
+                const preview = document.getElementById('previewNovaImagem');
+                if (preview) {
+                    preview.style.display = 'none';
+                    const img = preview.querySelector('img');
+                    if (img) img.src = '';
+                }
                 mostrarMensagemCarrinho('Produto adicionado com sucesso! ✅');
+            };
+
+            if (fileInput && fileInput.files && fileInput.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(ev) {
+                    salvarComImagem(ev.target.result);
+                };
+                reader.readAsDataURL(fileInput.files[0]);
+            } else {
+                salvarComImagem(null);
             }
         });
     }
@@ -2671,52 +2660,3 @@ window.excluirProduto = excluirProduto;
 window.fecharModalEditar = fecharModalEditar;
 window.previewImagem = previewImagem;
 window.removerPreview = removerPreview;
-const formAdicionarProduto = document.getElementById('formAdicionarProduto');
-
-if (formAdicionarProduto) {
-    formAdicionarProduto.addEventListener('submit', function (e) {
-        e.preventDefault();
-
-        const nome = produtoNome.value.trim();
-        const preco = parseFloat(produtoPreco.value);
-        const descricao = produtoDescricao.value.trim();
-        const sabores = produtoSabores.value.trim();
-        const personalizavel = produtoPersonalizavel.checked;
-        const imagemInput = produtoImagem;
-
-        if (!nome || !descricao || isNaN(preco) || preco <= 0) {
-            mostrarMensagem('Preencha todos os campos obrigatórios!', 'error');
-            return;
-        }
-
-        const saboresArray = sabores
-            ? sabores.split(',').map(s => s.trim()).filter(Boolean)
-            : [];
-
-        const salvar = (imagem = null) => {
-            produtos.push({
-                nome,
-                preco,
-                descricao,
-                sabores: saboresArray,
-                personalizavel,
-                imagem
-            });
-
-            salvarProdutos();        // ✅ salva no localStorage correto
-            renderizarProdutos();    // ✅ atualiza a vitrine
-            atualizarListaProdutosAdmin(); // ✅ atualiza admin
-
-            formAdicionarProduto.reset();
-            mostrarMensagemCarrinho('Produto adicionado com sucesso! ✅');
-        };
-
-        if (imagemInput.files && imagemInput.files[0]) {
-            const reader = new FileReader();
-            reader.onload = e => salvar(e.target.result);
-            reader.readAsDataURL(imagemInput.files[0]);
-        } else {
-            salvar(null);
-        }
-    });
-}
