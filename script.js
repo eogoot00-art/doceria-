@@ -1178,7 +1178,7 @@ function carregarProdutos() {
 }
 
 /**
- * Salva produtos no banco online (API). Assim as alterações ficam online para todos os visitantes.
+ * Salva produtos no banco online (MySQL). Toda edição no site vai automaticamente para o banco.
  */
 function salvarProdutos() {
     cacheManager.saveToCache('produtos', produtos);
@@ -1189,10 +1189,12 @@ function salvarProdutos() {
         body: JSON.stringify({ produtos: produtos, promocoes: promocoes })
     })
         .then(function(r) { return r.ok ? r.json() : Promise.reject(); })
-        .then(function() {})
+        .then(function() {
+            if (typeof mostrarMensagemCarrinho === 'function') mostrarMensagemCarrinho('Salvo no banco! ✅');
+        })
         .catch(function() {
             localStorage.setItem('produtosFlorChocolate', JSON.stringify(produtos));
-            if (typeof mostrarMensagem === 'function') mostrarMensagem('Servidor indisponível. Dados salvos só neste aparelho.', 'error');
+            if (typeof mostrarMensagem === 'function') mostrarMensagem('Servidor indisponível. Verifique api/config/config.php e MySQL.', 'error');
         });
 }
 
@@ -1225,7 +1227,7 @@ function carregarPromocoes() {
 }
 
 /**
- * Salva promoções no banco online (API). Assim as alterações ficam online para todos.
+ * Salva promoções no banco online (MySQL). Toda edição no site vai automaticamente para o banco.
  */
 function salvarPromocoes() {
     renderizarPromocoes();
@@ -1237,10 +1239,12 @@ function salvarPromocoes() {
         body: JSON.stringify({ produtos: produtos, promocoes: promocoes })
     })
         .then(function(r) { return r.ok ? r.json() : Promise.reject(); })
-        .then(function() {})
+        .then(function() {
+            if (typeof mostrarMensagemCarrinho === 'function') mostrarMensagemCarrinho('Salvo no banco! ✅');
+        })
         .catch(function() {
             localStorage.setItem('promocoesFlorChocolate', JSON.stringify(promocoes));
-            if (typeof mostrarMensagem === 'function') mostrarMensagem('Servidor indisponível. Dados salvos só neste aparelho.', 'error');
+            if (typeof mostrarMensagem === 'function') mostrarMensagem('Servidor indisponível. Verifique api/config/config.php e MySQL.', 'error');
         });
 }
 
