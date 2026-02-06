@@ -77,12 +77,26 @@ function renderizarPromocoesSeguro() {
     }
 }
 
-// Carrega dados do banco online (API). Se falhar, usa localStorage.
+// URL da API: sempre no mesmo servidor da página (para atualizar em todos os aparelhos)
+function getApiUrl() {
+    if (typeof window === 'undefined') return 'api/dados.php';
+    var loc = window.location;
+    if (loc.protocol === 'file:') return null;
+    var base = loc.origin + loc.pathname.replace(/\/[^/]*$/, '/');
+    return base + 'api/dados.php';
+}
+
+// Carrega dados do banco na nuvem (JSONBin.io).
 function carregarDadosOnline() {
-    var url = (typeof CONFIG !== 'undefined' && CONFIG.apiUrl) ? CONFIG.apiUrl : 'api/dados.php';
-    return fetch(url)
-        .then(function(r) { return r.ok ? r.json() : Promise.reject(); })
+    var url = getApiUrl();
+    if (!url) {
+        mostrarAvisoFile();
+        return Promise.resolve();
+    }
+    return fetch(url, { cache: 'no-store' })
+        .then(function(r) { return r.ok ? r.json() : Promise.reject(r); })
         .then(function(d) {
+            if (d.erro) return Promise.reject();
             if (d.produtos && Array.isArray(d.produtos)) {
                 produtos.length = 0;
                 produtos.push.apply(produtos, d.produtos);
@@ -93,34 +107,45 @@ function carregarDadosOnline() {
             }
         })
         .catch(function() {
-            carregarProdutosSeguro();
-            carregarPromocoesSeguro();
+            mostrarErroBanco('Não foi possível conectar ao banco na nuvem. Verifique a API e api/config/jsonbin.php.');
         });
 }
 
+function mostrarAvisoFile() {
+    var aviso = document.getElementById('aviso-servidor');
+    if (aviso) aviso.remove();
+    // Aviso vermelho removido
+}
+
+function mostrarErroBanco(msg) {
+    if (typeof mostrarMensagem === 'function') mostrarMensagem(msg, 'error');
+    var aviso = document.getElementById('aviso-servidor');
+    if (aviso) aviso.remove();
+    // Aviso vermelho fixo removido
+}
+
 /**
- * Sincroniza com o servidor: busca produtos e promoções do banco online e atualiza a tela.
- * Assim todos os clientes veem as mesmas alterações (produtos iguais para todos).
+ * Sincroniza com o banco na nuvem: busca dados e atualiza a tela.
  */
 function sincronizarComServidor() {
-    var url = (typeof CONFIG !== 'undefined' && CONFIG.apiUrl) ? CONFIG.apiUrl : 'api/dados.php';
-    fetch(url)
+    var url = getApiUrl();
+    if (!url) return;
+    fetch(url, { cache: 'no-store' })
         .then(function(r) { return r.ok ? r.json() : Promise.reject(); })
         .then(function(d) {
+            if (d.erro) return;
             var mudou = false;
             if (d.produtos && Array.isArray(d.produtos)) {
-                var jsonAtual = JSON.stringify(produtos);
                 var jsonNovo = JSON.stringify(d.produtos);
-                if (jsonAtual !== jsonNovo) {
+                if (JSON.stringify(produtos) !== jsonNovo) {
                     produtos.length = 0;
                     produtos.push.apply(produtos, d.produtos);
                     mudou = true;
                 }
             }
             if (d.promocoes && Array.isArray(d.promocoes)) {
-                var jsonAtualP = JSON.stringify(promocoes);
                 var jsonNovoP = JSON.stringify(d.promocoes);
-                if (jsonAtualP !== jsonNovoP) {
+                if (JSON.stringify(promocoes) !== jsonNovoP) {
                     promocoes.length = 0;
                     promocoes.push.apply(promocoes, d.promocoes);
                     mudou = true;
@@ -136,14 +161,13 @@ function sincronizarComServidor() {
         .catch(function() {});
 }
 
-// Executa no load: carrega do banco online, renderiza e inicia sincronização periódica
+// Executa no load: carrega do servidor, renderiza e sincroniza a cada 5 segundos
 document.addEventListener('DOMContentLoaded', function() {
     function run() {
         renderizarProdutosSeguro();
         renderizarPromocoesSeguro();
         try { iniciarFormulariosAdmin(); } catch (err) { console.warn('Formulários admin:', err); }
-        // Sincroniza com o servidor a cada 15 segundos: todos os clientes veem as mesmas alterações
-        setInterval(sincronizarComServidor, 15000);
+        setInterval(sincronizarComServidor, 5000);
     }
     carregarDadosOnline().then(run).catch(run);
 });
@@ -1144,107 +1168,90 @@ function excluirPromocao(index) {
 }
 
 /**
- * Carrega produtos do banco online (API). Se falhar, usa cache/localStorage.
+ * Carrega produtos do banco na nuvem (JSONBin).
  */
 function carregarProdutos() {
-    var url = (typeof CONFIG !== 'undefined' && CONFIG.apiUrl) ? CONFIG.apiUrl : 'api/dados.php';
-    fetch(url)
+    var url = typeof getApiUrl === 'function' ? getApiUrl() : 'api/dados.php';
+    if (!url) return;
+    fetch(url, { cache: 'no-store' })
         .then(function(r) { return r.ok ? r.json() : Promise.reject(); })
         .then(function(d) {
+            if (d.erro) return;
             if (d.produtos && Array.isArray(d.produtos)) {
                 produtos.length = 0;
                 produtos.push.apply(produtos, d.produtos);
-                cacheManager.saveToCache('produtos', produtos);
                 if (typeof renderizarProdutos === 'function') renderizarProdutos();
             }
         })
-        .catch(function() {
-            var produtosCache = cacheManager.getFromCache('produtos');
-            if (produtosCache && Array.isArray(produtosCache)) {
-                produtos.length = 0;
-                produtos.push.apply(produtos, produtosCache);
-                return;
-            }
-            var produtosSalvos = localStorage.getItem('produtosFlorChocolate');
-            if (produtosSalvos) {
-                try {
-                    var produtosCarregados = JSON.parse(produtosSalvos);
-                    produtos.length = 0;
-                    produtos.push.apply(produtos, produtosCarregados);
-                    cacheManager.saveToCache('produtos', produtos);
-                } catch (e) {}
-            }
-        });
+        .catch(function() {});
 }
 
 /**
- * Salva produtos no banco online (MySQL). Toda edição no site vai automaticamente para o banco.
+ * Salva produtos no banco na nuvem (JSONBin).
  */
 function salvarProdutos() {
-    cacheManager.saveToCache('produtos', produtos);
-    var url = (typeof CONFIG !== 'undefined' && CONFIG.apiUrl) ? CONFIG.apiUrl : 'api/dados.php';
+    var url = typeof getApiUrl === 'function' ? getApiUrl() : 'api/dados.php';
+    if (!url) {
+        if (typeof mostrarMensagem === 'function') mostrarMensagem('Acesse o site por http para salvar na nuvem.', 'error');
+        return;
+    }
     fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ produtos: produtos, promocoes: promocoes })
+        body: JSON.stringify({ produtos: produtos, promocoes: promocoes }),
+        cache: 'no-store'
     })
         .then(function(r) { return r.ok ? r.json() : Promise.reject(); })
         .then(function() {
-            if (typeof mostrarMensagemCarrinho === 'function') mostrarMensagemCarrinho('Salvo no banco! ✅');
+            if (typeof mostrarMensagemCarrinho === 'function') mostrarMensagemCarrinho('Salvo na nuvem! ✅');
         })
         .catch(function() {
-            localStorage.setItem('produtosFlorChocolate', JSON.stringify(produtos));
-            if (typeof mostrarMensagem === 'function') mostrarMensagem('Servidor indisponível. Verifique api/config/config.php e MySQL.', 'error');
+            if (typeof mostrarMensagem === 'function') mostrarMensagem('Falha ao salvar na nuvem. Verifique api/config/jsonbin.php.', 'error');
         });
 }
 
 /**
- * Carrega promoções do banco online (API). Se falhar, usa localStorage.
+ * Carrega promoções do banco na nuvem (JSONBin).
  */
 function carregarPromocoes() {
-    var url = (typeof CONFIG !== 'undefined' && CONFIG.apiUrl) ? CONFIG.apiUrl : 'api/dados.php';
-    fetch(url)
+    var url = typeof getApiUrl === 'function' ? getApiUrl() : 'api/dados.php';
+    if (!url) return;
+    fetch(url, { cache: 'no-store' })
         .then(function(r) { return r.ok ? r.json() : Promise.reject(); })
         .then(function(d) {
+            if (d.erro) return;
             if (d.promocoes && Array.isArray(d.promocoes)) {
                 promocoes.length = 0;
                 promocoes.push.apply(promocoes, d.promocoes);
                 if (typeof renderizarPromocoes === 'function') renderizarPromocoes();
             }
         })
-        .catch(function() {
-            var dados = localStorage.getItem('promocoesFlorChocolate');
-            if (dados) {
-                try {
-                    var lista = JSON.parse(dados);
-                    if (Array.isArray(lista)) {
-                        promocoes.length = 0;
-                        promocoes.push.apply(promocoes, lista);
-                    }
-                } catch (e) {}
-            }
-        });
+        .catch(function() {});
 }
 
 /**
- * Salva promoções no banco online (MySQL). Toda edição no site vai automaticamente para o banco.
+ * Salva promoções no banco na nuvem (JSONBin).
  */
 function salvarPromocoes() {
     renderizarPromocoes();
     if (typeof atualizarListaPromocoesAdmin === 'function') atualizarListaPromocoesAdmin();
-    var url = (typeof CONFIG !== 'undefined' && CONFIG.apiUrl) ? CONFIG.apiUrl : 'api/dados.php';
+    var url = typeof getApiUrl === 'function' ? getApiUrl() : 'api/dados.php';
+    if (!url) {
+        if (typeof mostrarMensagem === 'function') mostrarMensagem('Acesse o site por http para salvar na nuvem.', 'error');
+        return;
+    }
     fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ produtos: produtos, promocoes: promocoes })
+        body: JSON.stringify({ produtos: produtos, promocoes: promocoes }),
+        cache: 'no-store'
     })
         .then(function(r) { return r.ok ? r.json() : Promise.reject(); })
         .then(function() {
-            if (typeof mostrarMensagemCarrinho === 'function') mostrarMensagemCarrinho('Salvo no banco! ✅');
+            if (typeof mostrarMensagemCarrinho === 'function') mostrarMensagemCarrinho('Salvo na nuvem! ✅');
         })
         .catch(function() {
-            localStorage.setItem('promocoesFlorChocolate', JSON.stringify(promocoes));
-            if (typeof mostrarMensagem === 'function') mostrarMensagem('Servidor indisponível. Verifique api/config/config.php e MySQL.', 'error');
+            if (typeof mostrarMensagem === 'function') mostrarMensagem('Falha ao salvar na nuvem. Verifique api/config/jsonbin.php.', 'error');
         });
 }
 

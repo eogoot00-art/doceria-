@@ -1,6 +1,6 @@
 <?php
 /**
- * API REST - Produtos
+ * API REST - Produtos (banco externo JSONBin.io)
  * GET    ?id=opcional  -> listar todos ou um por id
  * POST   (body JSON)   -> adicionar produto
  * PUT    ?id=obrigatório (body JSON) -> editar produto
@@ -8,7 +8,7 @@
  */
 
 define('API_ROOT', __DIR__);
-$pdo = require_once __DIR__ . '/config/database.php';
+require_once __DIR__ . '/lib/jsonbin.php';
 
 header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
@@ -23,60 +23,62 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 $method = $_SERVER['REQUEST_METHOD'];
 $id = isset($_GET['id']) ? (int) $_GET['id'] : null;
 
-function produtoFromRow($row) {
-    $sabores = [];
-    if (!empty($row['sabores'])) {
-        $s = json_decode($row['sabores'], true);
-        if (is_array($s)) $sabores = $s;
-    }
+function produtoParaApi($p, $id) {
+    $sabores = isset($p['sabores']) && is_array($p['sabores']) ? $p['sabores'] : [];
     return [
-        'id' => (int) $row['id'],
-        'nome' => $row['nome'],
-        'preco' => (float) $row['preco'],
-        'descricao' => $row['descricao'],
+        'id' => $id,
+        'nome' => $p['nome'] ?? '',
+        'preco' => isset($p['preco']) ? (float) $p['preco'] : 0,
+        'descricao' => $p['descricao'] ?? '',
         'sabores' => $sabores,
-        'personalizavel' => (bool) $row['personalizavel'],
-        'imagem' => $row['imagem'] ?: null,
-        'destaque' => (bool) $row['destaque'],
+        'personalizavel' => !empty($p['personalizavel']),
+        'imagem' => $p['imagem'] ?? null,
+        'destaque' => !empty($p['destaque']),
     ];
 }
 
 function validarProduto($p) {
-    if (empty($p['nome']) || !isset($p['preco']) || (float)$p['preco'] <= 0) {
-        return false;
-    }
-    return true;
+    return !empty($p['nome']) && isset($p['preco']) && (float)$p['preco'] > 0;
 }
 
-// GET - Listar todos ou um por id
+function carregarBin() {
+    $data = jsonbin_load();
+    if ($data === null) {
+        return null;
+    }
+    return $data;
+}
+
+function salvarBin($data) {
+    return jsonbin_save($data);
+}
+
 if ($method === 'GET') {
-    try {
-        if ($id) {
-            $stmt = $pdo->prepare('SELECT id, nome, preco, descricao, sabores, personalizavel, imagem, destaque FROM produtos WHERE id = ?');
-            $stmt->execute([$id]);
-            $row = $stmt->fetch();
-            if (!$row) {
-                http_response_code(404);
-                echo json_encode(['erro' => 'Produto não encontrado']);
-                exit;
-            }
-            echo json_encode(produtoFromRow($row));
-        } else {
-            $stmt = $pdo->query('SELECT id, nome, preco, descricao, sabores, personalizavel, imagem, destaque FROM produtos ORDER BY id');
-            $lista = [];
-            while ($row = $stmt->fetch()) {
-                $lista[] = produtoFromRow($row);
-            }
-            echo json_encode(['produtos' => $lista]);
+    $data = carregarBin();
+    if ($data === null) {
+        http_response_code(502);
+        echo json_encode(['erro' => 'Banco na nuvem indisponível']);
+        exit;
+    }
+    $lista = $data['produtos'];
+    if ($id) {
+        $idx = $id - 1;
+        if ($idx < 0 || $idx >= count($lista)) {
+            http_response_code(404);
+            echo json_encode(['erro' => 'Produto não encontrado']);
+            exit;
         }
-    } catch (Exception $e) {
-        http_response_code(500);
-        echo json_encode(['erro' => 'Erro ao listar']);
+        echo json_encode(produtoParaApi($lista[$idx], $id));
+    } else {
+        $out = [];
+        foreach ($lista as $i => $p) {
+            $out[] = produtoParaApi($p, $i + 1);
+        }
+        echo json_encode(['produtos' => $out]);
     }
     exit;
 }
 
-// POST - Adicionar produto
 if ($method === 'POST') {
     $raw = file_get_contents('php://input');
     $p = json_decode($raw, true);
@@ -85,29 +87,32 @@ if ($method === 'POST') {
         echo json_encode(['erro' => 'Dados inválidos. Envie nome e preço.']);
         exit;
     }
-    $sabores = isset($p['sabores']) && is_array($p['sabores']) ? json_encode($p['sabores']) : '[]';
-    try {
-        $stmt = $pdo->prepare('INSERT INTO produtos (nome, preco, descricao, sabores, personalizavel, imagem, destaque) VALUES (?, ?, ?, ?, ?, ?, ?)');
-        $stmt->execute([
-            $p['nome'],
-            (float) $p['preco'],
-            $p['descricao'] ?? '',
-            $sabores,
-            !empty($p['personalizavel']) ? 1 : 0,
-            $p['imagem'] ?? null,
-            !empty($p['destaque']) ? 1 : 0,
-        ]);
-        $novoId = (int) $pdo->lastInsertId();
-        http_response_code(201);
-        echo json_encode(['ok' => true, 'id' => $novoId]);
-    } catch (Exception $e) {
-        http_response_code(500);
-        echo json_encode(['erro' => 'Erro ao adicionar']);
+    $data = carregarBin();
+    if ($data === null) {
+        http_response_code(502);
+        echo json_encode(['erro' => 'Banco na nuvem indisponível']);
+        exit;
     }
+    $item = [
+        'nome' => $p['nome'],
+        'preco' => (float) $p['preco'],
+        'descricao' => $p['descricao'] ?? '',
+        'sabores' => isset($p['sabores']) && is_array($p['sabores']) ? $p['sabores'] : [],
+        'personalizavel' => !empty($p['personalizavel']),
+        'imagem' => $p['imagem'] ?? null,
+        'destaque' => !empty($p['destaque']),
+    ];
+    $data['produtos'][] = $item;
+    if (!salvarBin($data)) {
+        http_response_code(502);
+        echo json_encode(['erro' => 'Erro ao salvar na nuvem']);
+        exit;
+    }
+    http_response_code(201);
+    echo json_encode(['ok' => true, 'id' => count($data['produtos'])]);
     exit;
 }
 
-// PUT - Editar produto
 if ($method === 'PUT') {
     if (!$id) {
         http_response_code(400);
@@ -121,52 +126,61 @@ if ($method === 'PUT') {
         echo json_encode(['erro' => 'Dados inválidos']);
         exit;
     }
-    $sabores = isset($p['sabores']) && is_array($p['sabores']) ? json_encode($p['sabores']) : '[]';
-    try {
-        $stmt = $pdo->prepare('UPDATE produtos SET nome = ?, preco = ?, descricao = ?, sabores = ?, personalizavel = ?, imagem = ?, destaque = ? WHERE id = ?');
-        $stmt->execute([
-            $p['nome'],
-            (float) $p['preco'],
-            $p['descricao'] ?? '',
-            $sabores,
-            !empty($p['personalizavel']) ? 1 : 0,
-            $p['imagem'] ?? null,
-            !empty($p['destaque']) ? 1 : 0,
-            $id,
-        ]);
-        if ($stmt->rowCount() === 0) {
-            http_response_code(404);
-            echo json_encode(['erro' => 'Produto não encontrado']);
-            exit;
-        }
-        echo json_encode(['ok' => true]);
-    } catch (Exception $e) {
-        http_response_code(500);
-        echo json_encode(['erro' => 'Erro ao editar']);
+    $data = carregarBin();
+    if ($data === null) {
+        http_response_code(502);
+        echo json_encode(['erro' => 'Banco na nuvem indisponível']);
+        exit;
     }
+    $idx = $id - 1;
+    if ($idx < 0 || $idx >= count($data['produtos'])) {
+        http_response_code(404);
+        echo json_encode(['erro' => 'Produto não encontrado']);
+        exit;
+    }
+    $data['produtos'][$idx] = [
+        'nome' => $p['nome'],
+        'preco' => (float) $p['preco'],
+        'descricao' => $p['descricao'] ?? '',
+        'sabores' => isset($p['sabores']) && is_array($p['sabores']) ? $p['sabores'] : [],
+        'personalizavel' => !empty($p['personalizavel']),
+        'imagem' => $p['imagem'] ?? null,
+        'destaque' => !empty($p['destaque']),
+    ];
+    if (!salvarBin($data)) {
+        http_response_code(502);
+        echo json_encode(['erro' => 'Erro ao salvar na nuvem']);
+        exit;
+    }
+    echo json_encode(['ok' => true]);
     exit;
 }
 
-// DELETE - Excluir produto
 if ($method === 'DELETE') {
     if (!$id) {
         http_response_code(400);
         echo json_encode(['erro' => 'Informe ?id= do produto']);
         exit;
     }
-    try {
-        $stmt = $pdo->prepare('DELETE FROM produtos WHERE id = ?');
-        $stmt->execute([$id]);
-        if ($stmt->rowCount() === 0) {
-            http_response_code(404);
-            echo json_encode(['erro' => 'Produto não encontrado']);
-            exit;
-        }
-        echo json_encode(['ok' => true]);
-    } catch (Exception $e) {
-        http_response_code(500);
-        echo json_encode(['erro' => 'Erro ao excluir']);
+    $data = carregarBin();
+    if ($data === null) {
+        http_response_code(502);
+        echo json_encode(['erro' => 'Banco na nuvem indisponível']);
+        exit;
     }
+    $idx = $id - 1;
+    if ($idx < 0 || $idx >= count($data['produtos'])) {
+        http_response_code(404);
+        echo json_encode(['erro' => 'Produto não encontrado']);
+        exit;
+    }
+    array_splice($data['produtos'], $idx, 1);
+    if (!salvarBin($data)) {
+        http_response_code(502);
+        echo json_encode(['erro' => 'Erro ao salvar na nuvem']);
+        exit;
+    }
+    echo json_encode(['ok' => true]);
     exit;
 }
 

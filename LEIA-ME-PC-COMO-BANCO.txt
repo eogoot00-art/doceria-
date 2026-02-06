@@ -1,0 +1,44 @@
+========================================
+  SEU PC COMO BANCO DE DADOS - COMO USAR
+========================================
+
+O banco fica no seu PC (arquivo api/flor.sqlite). Não usa localStorage.
+Todos os aparelhos que acessarem o site pelo seu PC veem os mesmos dados.
+
+----------------------------------------
+PASSO 1: Colocar a pasta no XAMPP
+----------------------------------------
+1. Copie a pasta inteira do projeto para:
+   C:\xampp\htdocs\
+
+   Exemplo: se a pasta se chama "doceria", fica:
+   C:\xampp\htdocs\doceria\
+
+   (Dentro de doceria devem estar: index.html, script.js, style.css, api/, etc.)
+
+----------------------------------------
+PASSO 2: Iniciar o Apache
+----------------------------------------
+1. Abra o XAMPP Control Panel
+2. Clique em "Start" ao lado de "Apache"
+   (MySQL não precisa estar ligado)
+
+----------------------------------------
+PASSO 3: Acessar o site
+----------------------------------------
+No navegador, digite:
+
+   http://localhost/doceria/
+
+(Substitua "doceria" pelo nome da sua pasta dentro de htdocs.)
+
+----------------------------------------
+PRONTO
+----------------------------------------
+- O PHP cria automaticamente o arquivo api/flor.sqlite no primeiro acesso
+- Tudo que você adicionar/editar/excluir no painel admin vai para esse arquivo (banco no seu PC)
+- No celular ou outro PC: acesse http://IP-DO-SEU-PC/doceria/
+  (Descubra o IP do PC: no Windows, digite ipconfig no CMD e veja "Endereço IPv4")
+- Os outros aparelhos veem as alterações em até 5 segundos (ou recarregue a página)
+
+NÃO abra o index.html clicando direto no arquivo (file://). Sempre use http://localhost/...

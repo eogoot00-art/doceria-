@@ -1,19 +1,25 @@
-API Flor de Chocolate - Banco de dados online (MySQL)
+API Flor de Chocolate - Banco externo na nuvem (JSONBin.io)
 
-Backend em PHP com MySQL. Produtos e promoções ficam no banco central;
-qualquer alteração reflete automaticamente para todos os usuários (site e celular).
+Não usa banco no PC (sem SQLite, sem MySQL local). Produtos e promoções
+ficam no JSONBin.io; qualquer alteração reflete para todos os usuários.
 
 Requisitos:
-- Servidor com PHP (XAMPP, hospedagem, etc.)
-- MySQL (ou MariaDB) com banco criado
-- Extensão PDO MySQL habilitada no PHP
+- Servidor com PHP (XAMPP, hospedagem, etc.) para rodar a API
+- Conta grátis no JSONBin.io (https://jsonbin.io)
 
-Como usar:
-1. Crie o banco MySQL e execute o script sql/schema.sql (veja API-DOCS.md).
-2. Copie api/config/config.example.php para api/config/config.php e preencha
-   db_host, db_name, db_user, db_pass.
-3. Coloque o site (incluindo api/ e sql/) no servidor.
-4. O frontend chama api/dados.php (GET = carregar tudo, POST = salvar tudo).
-   Para API REST por recurso use api/produtos.php e api/promocoes.php.
+Como configurar:
+1. Crie conta em https://jsonbin.io/login
+2. Em API Keys, copie sua Master Key
+3. Crie um bin: no site ou POST https://api.jsonbin.io/v3/b
+   com body {"produtos":[],"promocoes":[]} e header X-Master-Key.
+   Copie o "id" do bin da resposta.
+4. Copie api/config/jsonbin.example.php para api/config/jsonbin.php
+   e preencha jsonbin_bin_id e jsonbin_master_key.
+5. Coloque o site (incluindo api/) no servidor. Acesse por http.
 
-Documentação completa: API-DOCS.md (raiz do projeto).
+Endpoints:
+- api/dados.php  GET = carregar tudo, POST = salvar tudo (usado pelo site)
+- api/produtos.php   GET/POST/PUT/DELETE por produto
+- api/promocoes.php  GET/POST/PUT/DELETE por promoção
+
+Documentação: API-DOCS.md (raiz do projeto).
