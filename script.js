@@ -86,7 +86,7 @@ function getApiUrl() {
     return base + 'api/dados.php';
 }
 
-// Carrega dados do banco na nuvem (JSONBin.io).
+// Carrega dados do banco na nuvem (JSONBin.io). Única fonte de verdade ao carregar a página.
 function carregarDadosOnline() {
     var url = getApiUrl();
     if (!url) {
@@ -94,27 +94,44 @@ function carregarDadosOnline() {
         return Promise.resolve();
     }
     return fetch(url, { cache: 'no-store' })
-        .then(function(r) { return r.ok ? r.json() : Promise.reject(r); })
-        .then(function(d) {
-            if (d.erro) return Promise.reject();
-            if (d.produtos && Array.isArray(d.produtos)) {
-                produtos.length = 0;
-                produtos.push.apply(produtos, d.produtos);
-            }
-            if (d.promocoes && Array.isArray(d.promocoes)) {
-                promocoes.length = 0;
-                promocoes.push.apply(promocoes, d.promocoes);
-            }
+        .then(function(r) {
+            return r.text().then(function(txt) {
+                var d;
+                try { d = JSON.parse(txt); } catch (e) { d = {}; }
+                if (!r.ok) {
+                    var msg = (d && d.erro) ? d.erro : ('Erro ' + r.status + ' na API');
+                    return Promise.reject(new Error(msg));
+                }
+                if (d && d.erro) return Promise.reject(new Error(d.erro));
+                if (d && d.produtos && Array.isArray(d.produtos)) {
+                    produtos.length = 0;
+                    produtos.push.apply(produtos, d.produtos);
+                }
+                if (d && d.promocoes && Array.isArray(d.promocoes)) {
+                    promocoes.length = 0;
+                    promocoes.push.apply(promocoes, d.promocoes);
+                }
+                try {
+                    localStorage.removeItem('produtosFlorChocolate');
+                    localStorage.removeItem('promocoesFlorChocolate');
+                } catch (e) {}
+                return d;
+            });
         })
-        .catch(function() {
-            mostrarErroBanco('Não foi possível conectar ao banco na nuvem. Verifique a API e api/config/jsonbin.php.');
+        .catch(function(err) {
+            var msg = (err && err.message) ? err.message : 'Não foi possível conectar ao banco na nuvem. Acesse o site por HTTP (ex: http://localhost/pasta/) e verifique api/config/jsonbin.php.';
+            mostrarErroBanco(msg);
         });
 }
 
 function mostrarAvisoFile() {
     var aviso = document.getElementById('aviso-servidor');
-    if (aviso) aviso.remove();
-    // Aviso vermelho removido
+    if (aviso) return;
+    aviso = document.createElement('div');
+    aviso.id = 'aviso-servidor';
+    aviso.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#F57C00;color:#fff;padding:10px;text-align:center;z-index:9999;font-size:13px;';
+    aviso.textContent = 'Para carregar e salvar os dados na nuvem, acesse o site por HTTP (ex: http://localhost/nome-da-pasta/). Não abra o arquivo direto do disco.';
+    document.body.insertBefore(aviso, document.body.firstChild);
 }
 
 function mostrarErroBanco(msg) {
@@ -126,14 +143,20 @@ function mostrarErroBanco(msg) {
 
 /**
  * Sincroniza com o banco na nuvem: busca dados e atualiza a tela.
+ * Não sobrescreve nos 4 segundos após um salvamento, para não trazer dados antigos.
  */
 function sincronizarComServidor() {
     var url = getApiUrl();
     if (!url) return;
+    var agora = Date.now();
+    if (window.ultimoSalvamentoNuvem && (agora - window.ultimoSalvamentoNuvem) < 4000) {
+        return;
+    }
     fetch(url, { cache: 'no-store' })
         .then(function(r) { return r.ok ? r.json() : Promise.reject(); })
         .then(function(d) {
             if (d.erro) return;
+            if (window.ultimoSalvamentoNuvem && (Date.now() - window.ultimoSalvamentoNuvem) < 4000) return;
             var mudou = false;
             if (d.produtos && Array.isArray(d.produtos)) {
                 var jsonNovo = JSON.stringify(d.produtos);
@@ -733,12 +756,13 @@ function atualizarListaProdutosAdmin() {
     }
     
     lista.innerHTML = produtos.map((produto, index) => {
-        const precoFormatado = produto.preco.toFixed(2).replace('.', ',');
+        const precoFormatado = (produto.preco != null ? produto.preco : 0).toFixed(2).replace('.', ',');
+        const descricaoResumo = (produto.descricao || '').substring(0, 100);
         return `
             <div class="produto-admin-item">
                 <div class="produto-admin-info">
-                    <h4>${produto.nome}</h4>
-                    <p>${produto.descricao.substring(0, 100)}...</p>
+                    <h4>${produto.nome || ''}</h4>
+                    <p>${descricaoResumo ? descricaoResumo + '...' : '—'}</p>
                     <strong>R$ ${precoFormatado}</strong>
                 </div>
                 <div class="produto-admin-acoes">
@@ -798,7 +822,7 @@ function editarProduto(index) {
                 </div>
                 <div class="form-group">
                     <label>Descrição *</label>
-                    <textarea id="editDescricao" rows="4" required>${escaparHTML(produto.descricao)}</textarea>
+                    <textarea id="editDescricao" rows="4" required>${escaparHTML(produto.descricao || '')}</textarea>
                 </div>
                 <div class="form-group">
                     <label title="Exibir este produto na seção Promoções e Destaques">
@@ -1203,6 +1227,8 @@ function salvarProdutos() {
     })
         .then(function(r) { return r.ok ? r.json() : Promise.reject(); })
         .then(function() {
+            window.ultimoSalvamentoNuvem = Date.now();
+            try { localStorage.removeItem('produtosFlorChocolate'); localStorage.removeItem('promocoesFlorChocolate'); } catch (e) {}
             if (typeof mostrarMensagemCarrinho === 'function') mostrarMensagemCarrinho('Salvo na nuvem! Todos que acessarem o site verão as alterações. ✅');
         })
         .catch(function() {
@@ -1246,12 +1272,20 @@ function salvarPromocoes() {
         body: JSON.stringify({ produtos: produtos, promocoes: promocoes }),
         cache: 'no-store'
     })
-        .then(function(r) { return r.ok ? r.json() : Promise.reject(); })
-        .then(function() {
-            if (typeof mostrarMensagemCarrinho === 'function') mostrarMensagemCarrinho('Salvo na nuvem! Todos que acessarem o site verão as alterações. ✅');
+        .then(function(r) {
+            return r.json().then(function(d) {
+                if (!r.ok) {
+                    var msg = (d && d.erro) ? d.erro : ('Erro ' + r.status + ' ao salvar');
+                    throw new Error(msg);
+                }
+                window.ultimoSalvamentoNuvem = Date.now();
+                try { localStorage.removeItem('produtosFlorChocolate'); localStorage.removeItem('promocoesFlorChocolate'); } catch (e) {}
+                if (typeof mostrarMensagemCarrinho === 'function') mostrarMensagemCarrinho('Salvo na nuvem! Todos que acessarem o site verão as alterações. ✅');
+            });
         })
-        .catch(function() {
-            if (typeof mostrarMensagem === 'function') mostrarMensagem('Falha ao salvar na nuvem. Verifique api/config/jsonbin.php.', 'error');
+        .catch(function(err) {
+            var msg = (err && err.message) ? err.message : 'Falha ao salvar na nuvem. Verifique api/config/jsonbin.php e acesse por HTTP.';
+            if (typeof mostrarMensagem === 'function') mostrarMensagem(msg, 'error');
         });
 }
 
@@ -1267,15 +1301,12 @@ function carregarDadosRemotos() {
             if (d.produtos && Array.isArray(d.produtos)) {
                 produtos.length = 0;
                 produtos.push(...d.produtos);
-                localStorage.setItem('produtosFlorChocolate', JSON.stringify(produtos));
-                cacheManager.saveToCache('produtos', produtos);
-                renderizarProdutos();
+                if (typeof renderizarProdutos === 'function') renderizarProdutos();
             }
             if (d.promocoes && Array.isArray(d.promocoes)) {
                 promocoes.length = 0;
                 promocoes.push(...d.promocoes);
-                localStorage.setItem('promocoesFlorChocolate', JSON.stringify(promocoes));
-                renderizarPromocoes();
+                if (typeof renderizarPromocoes === 'function') renderizarPromocoes();
             }
         })
         .catch(() => {});
@@ -2372,11 +2403,11 @@ function criarCardProduto(produto) {
     }
     
     // Formata preço para exibição brasileira
-    const precoFormatado = produto.preco.toFixed(2).replace('.', ',');
+    const precoFormatado = (produto.preco != null ? produto.preco : 0).toFixed(2).replace('.', ',');
     
     // Escapa o nome do produto para uso seguro em HTML
-    const nomeEscapado = escaparHTML(produto.nome).replace(/'/g, "\\'");
-    const descricaoEscapada = escaparHTML(produto.descricao);
+    const nomeEscapado = escaparHTML(produto.nome || '').replace(/'/g, "\\'");
+    const descricaoEscapada = escaparHTML(produto.descricao || '');
     
     // Cria seletor de sabores se o produto tiver sabores
     let seletorSaboresHTML = '';
@@ -2440,8 +2471,8 @@ function criarCardProduto(produto) {
             <div class="produto-overlay"></div>
         </div>
         <div class="produto-info">
-            <h3 class="produto-nome">${produto.nome}</h3>
-            <p class="produto-descricao">${produto.descricao}</p>
+            <h3 class="produto-nome">${produto.nome || ''}</h3>
+            <p class="produto-descricao">${produto.descricao || ''}</p>
             ${seletorSaboresHTML}
             <div class="produto-preco">${precoFormatado}</div>
             <div class="produto-botoes">
@@ -2968,15 +2999,14 @@ function iniciarFormulariosAdmin() {
  */
 document.addEventListener('DOMContentLoaded', function() {
     try {
-    // Carrega produtos do localStorage
-    carregarProdutos();
+    // Produtos e promoções vêm só da API (carregarDadosOnline no primeiro DOMContentLoaded)
     // Inicializa sistema de autenticação
     inicializarAuth();
     
     // Carrega o carrinho do localStorage
     carregarCarrinho();
     
-    // Renderiza os produtos
+    // Renderiza os produtos (já carregados pela API)
     renderizarProdutos();
     
     // Configura botão do carrinho com event listener alternativo
