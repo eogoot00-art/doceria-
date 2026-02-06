@@ -1,9 +1,14 @@
 <?php
 /**
  * API Flor de Chocolate - Banco de dados online (SQLite no servidor)
- * GET: retorna { produtos: [], promocoes: [] }
- * POST: recebe JSON { produtos: [], promocoes: [] } e salva no SQLite
- * O arquivo SQLite fica no servidor; alterações ficam online para todos os visitantes.
+ *
+ * Fonte única da verdade: todos os clientes recebem os mesmos produtos e promoções.
+ * GET: retorna { produtos: [], promocoes: [] } do SQLite
+ * POST: recebe JSON { produtos: [], promocoes: [] } e grava no SQLite (substitui tudo)
+ *
+ * Quando você atualiza um produto no painel admin, os dados são enviados aqui e
+ * gravados no SQLite. Qualquer pessoa que acessar o site (ou já estiver com a
+ * página aberta) verá as mesmas alterações.
  */
 
 header('Content-Type: application/json; charset=utf-8');

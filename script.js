@@ -98,12 +98,52 @@ function carregarDadosOnline() {
         });
 }
 
-// Executa no load: carrega do banco online e depois renderiza
+/**
+ * Sincroniza com o servidor: busca produtos e promoções do banco online e atualiza a tela.
+ * Assim todos os clientes veem as mesmas alterações (produtos iguais para todos).
+ */
+function sincronizarComServidor() {
+    var url = (typeof CONFIG !== 'undefined' && CONFIG.apiUrl) ? CONFIG.apiUrl : 'api/dados.php';
+    fetch(url)
+        .then(function(r) { return r.ok ? r.json() : Promise.reject(); })
+        .then(function(d) {
+            var mudou = false;
+            if (d.produtos && Array.isArray(d.produtos)) {
+                var jsonAtual = JSON.stringify(produtos);
+                var jsonNovo = JSON.stringify(d.produtos);
+                if (jsonAtual !== jsonNovo) {
+                    produtos.length = 0;
+                    produtos.push.apply(produtos, d.produtos);
+                    mudou = true;
+                }
+            }
+            if (d.promocoes && Array.isArray(d.promocoes)) {
+                var jsonAtualP = JSON.stringify(promocoes);
+                var jsonNovoP = JSON.stringify(d.promocoes);
+                if (jsonAtualP !== jsonNovoP) {
+                    promocoes.length = 0;
+                    promocoes.push.apply(promocoes, d.promocoes);
+                    mudou = true;
+                }
+            }
+            if (mudou) {
+                if (typeof renderizarProdutos === 'function') renderizarProdutos();
+                if (typeof renderizarPromocoes === 'function') renderizarPromocoes();
+                if (typeof atualizarListaProdutosAdmin === 'function') atualizarListaProdutosAdmin();
+                if (typeof atualizarListaPromocoesAdmin === 'function') atualizarListaPromocoesAdmin();
+            }
+        })
+        .catch(function() {});
+}
+
+// Executa no load: carrega do banco online, renderiza e inicia sincronização periódica
 document.addEventListener('DOMContentLoaded', function() {
     function run() {
         renderizarProdutosSeguro();
         renderizarPromocoesSeguro();
         try { iniciarFormulariosAdmin(); } catch (err) { console.warn('Formulários admin:', err); }
+        // Sincroniza com o servidor a cada 15 segundos: todos os clientes veem as mesmas alterações
+        setInterval(sincronizarComServidor, 15000);
     }
     carregarDadosOnline().then(run).catch(run);
 });
