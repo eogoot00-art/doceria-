@@ -173,7 +173,7 @@ const CONFIG = {
     cacheVersion: 'v2.1',
     enableAnalytics: true,
     enableNotifications: true,
-    // Banco online: API PHP + SQLite no servidor (XAMPP, hospedagem, etc.)
+    // Banco online: API PHP + MySQL (veja API-DOCS.md e api/config/config.php)
     apiUrl: 'api/dados.php'
 };
 

@@ -1,15 +1,16 @@
 <?php
 /**
- * API Flor de Chocolate - Banco de dados online (SQLite no servidor)
+ * API Flor de Chocolate - Banco central online (MySQL)
  *
- * Fonte única da verdade: todos os clientes recebem os mesmos produtos e promoções.
- * GET: retorna { produtos: [], promocoes: [] } do SQLite
- * POST: recebe JSON { produtos: [], promocoes: [] } e grava no SQLite (substitui tudo)
+ * Endpoint único para o frontend atual: carrega e salva produtos + promoções de uma vez.
+ * GET  -> retorna { produtos: [], promocoes: [] } do MySQL
+ * POST -> recebe JSON { produtos: [], promocoes: [] } e grava no MySQL (substitui tudo)
  *
- * Quando você atualiza um produto no painel admin, os dados são enviados aqui e
- * gravados no SQLite. Qualquer pessoa que acessar o site (ou já estiver com a
- * página aberta) verá as mesmas alterações.
+ * Qualquer alteração no banco reflete automaticamente para todos os usuários (site e celular).
  */
+
+define('API_ROOT', __DIR__);
+$pdo = require_once __DIR__ . '/config/database.php';
 
 header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
@@ -21,87 +22,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
-$dbFile = __DIR__ . '/flor.sqlite';
-
-function getDb() {
-    global $dbFile;
-    try {
-        $db = new PDO('sqlite:' . $dbFile);
-        $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-        return $db;
-    } catch (Exception $e) {
-    }
-    return null;
-}
-
-function initTables($db) {
-    $db->exec("
-        CREATE TABLE IF NOT EXISTS produtos (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nome TEXT,
-            preco REAL,
-            descricao TEXT,
-            sabores TEXT,
-            personalizavel INTEGER,
-            imagem TEXT,
-            destaque INTEGER
-        )
-    ");
-    $db->exec("
-        CREATE TABLE IF NOT EXISTS promocoes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nome TEXT,
-            badge TEXT,
-            emoji TEXT,
-            preco_original REAL,
-            preco_promocao REAL,
-            descricao TEXT
-        )
-    ");
-}
-
-function loadProdutos($db) {
-    $stmt = $db->query("SELECT id, nome, preco, descricao, sabores, personalizavel, imagem, destaque FROM produtos ORDER BY id");
+function loadProdutos($pdo) {
+    $stmt = $pdo->query('SELECT id, nome, preco, descricao, sabores, personalizavel, imagem, destaque FROM produtos ORDER BY id');
     $out = [];
-    while ($row = $stmt->fetch(PDO::FETCH_NUM)) {
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
         $sabores = [];
-        if (!empty($row[4])) {
-            $s = json_decode($row[4], true);
+        if (!empty($row['sabores'])) {
+            $s = json_decode($row['sabores'], true);
             if (is_array($s)) $sabores = $s;
         }
         $out[] = [
-            'nome' => $row[1],
-            'preco' => (float)$row[2],
-            'descricao' => $row[3],
+            'nome' => $row['nome'],
+            'preco' => (float) $row['preco'],
+            'descricao' => $row['descricao'],
             'sabores' => $sabores,
-            'personalizavel' => (bool)$row[5],
-            'imagem' => $row[6] ?: null,
-            'destaque' => (bool)$row[7]
+            'personalizavel' => (bool) $row['personalizavel'],
+            'imagem' => $row['imagem'] ?: null,
+            'destaque' => (bool) $row['destaque'],
         ];
     }
     return $out;
 }
 
-function loadPromocoes($db) {
-    $stmt = $db->query("SELECT id, nome, badge, emoji, preco_original, preco_promocao, descricao FROM promocoes ORDER BY id");
+function loadPromocoes($pdo) {
+    $stmt = $pdo->query('SELECT id, nome, badge, emoji, preco_original, preco_promocao, descricao FROM promocoes ORDER BY id');
     $out = [];
-    while ($row = $stmt->fetch(PDO::FETCH_NUM)) {
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
         $out[] = [
-            'nome' => $row[1],
-            'badge' => $row[2],
-            'emoji' => $row[3] ?: '🍰',
-            'precoOriginal' => (float)$row[4],
-            'precoPromocao' => (float)$row[5],
-            'descricao' => $row[6]
+            'nome' => $row['nome'],
+            'badge' => $row['badge'] ?? '',
+            'emoji' => $row['emoji'] ?? '🍰',
+            'precoOriginal' => (float) $row['preco_original'],
+            'precoPromocao' => (float) $row['preco_promocao'],
+            'descricao' => $row['descricao'] ?? '',
         ];
     }
     return $out;
 }
 
-function saveProdutos($db, $produtos) {
-    $db->exec("DELETE FROM produtos");
+function saveProdutos($pdo, $produtos) {
+    $pdo->exec('DELETE FROM produtos');
     if (empty($produtos)) return;
-    $stmt = $db->prepare("INSERT INTO produtos (nome, preco, descricao, sabores, personalizavel, imagem, destaque) VALUES (?, ?, ?, ?, ?, ?, ?)");
+    $stmt = $pdo->prepare('INSERT INTO produtos (nome, preco, descricao, sabores, personalizavel, imagem, destaque) VALUES (?, ?, ?, ?, ?, ?, ?)');
     foreach ($produtos as $p) {
         $stmt->execute([
             $p['nome'] ?? '',
@@ -110,15 +72,15 @@ function saveProdutos($db, $produtos) {
             json_encode($p['sabores'] ?? []),
             !empty($p['personalizavel']) ? 1 : 0,
             $p['imagem'] ?? null,
-            !empty($p['destaque']) ? 1 : 0
+            !empty($p['destaque']) ? 1 : 0,
         ]);
     }
 }
 
-function savePromocoes($db, $promocoes) {
-    $db->exec("DELETE FROM promocoes");
+function savePromocoes($pdo, $promocoes) {
+    $pdo->exec('DELETE FROM promocoes');
     if (empty($promocoes)) return;
-    $stmt = $db->prepare("INSERT INTO promocoes (nome, badge, emoji, preco_original, preco_promocao, descricao) VALUES (?, ?, ?, ?, ?, ?)");
+    $stmt = $pdo->prepare('INSERT INTO promocoes (nome, badge, emoji, preco_original, preco_promocao, descricao) VALUES (?, ?, ?, ?, ?, ?)');
     foreach ($promocoes as $pr) {
         $stmt->execute([
             $pr['nome'] ?? '',
@@ -126,24 +88,20 @@ function savePromocoes($db, $promocoes) {
             $pr['emoji'] ?? '🍰',
             isset($pr['precoOriginal']) ? (float)$pr['precoOriginal'] : 0,
             isset($pr['precoPromocao']) ? (float)$pr['precoPromocao'] : 0,
-            $pr['descricao'] ?? ''
+            $pr['descricao'] ?? '',
         ]);
     }
 }
 
-$db = getDb();
-if (!$db) {
-    http_response_code(500);
-    echo json_encode(['erro' => 'Banco indisponível']);
-    exit;
-}
-
-initTables($db);
-
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-    $produtos = loadProdutos($db);
-    $promocoes = loadPromocoes($db);
-    echo json_encode(['produtos' => $produtos, 'promocoes' => $promocoes]);
+    try {
+        $produtos = loadProdutos($pdo);
+        $promocoes = loadPromocoes($pdo);
+        echo json_encode(['produtos' => $produtos, 'promocoes' => $promocoes]);
+    } catch (Exception $e) {
+        http_response_code(500);
+        echo json_encode(['erro' => 'Erro ao carregar dados']);
+    }
     exit;
 }
 
@@ -158,13 +116,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $produtos = isset($data['produtos']) && is_array($data['produtos']) ? $data['produtos'] : [];
     $promocoes = isset($data['promocoes']) && is_array($data['promocoes']) ? $data['promocoes'] : [];
     try {
-        $db->beginTransaction();
-        saveProdutos($db, $produtos);
-        savePromocoes($db, $promocoes);
-        $db->commit();
+        $pdo->beginTransaction();
+        saveProdutos($pdo, $produtos);
+        savePromocoes($pdo, $promocoes);
+        $pdo->commit();
         echo json_encode(['ok' => true]);
     } catch (Exception $e) {
-        $db->rollBack();
+        $pdo->rollBack();
         http_response_code(500);
         echo json_encode(['erro' => 'Erro ao salvar']);
     }
