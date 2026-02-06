@@ -11,23 +11,20 @@ window.cacheManager = window.cacheManager || {
     saveToCache: () => {}
 };
 
-// Carregamento seguro de produtos
+// Carregamento seguro de produtos (não apaga os produtos se não houver dados salvos)
 function carregarProdutosSeguro() {
     try {
         const dados = localStorage.getItem('produtosFlorChocolate');
         if (!dados) {
-            produtos.length = 0;
             return;
         }
-
         const lista = JSON.parse(dados);
-        if (Array.isArray(lista)) {
+        if (Array.isArray(lista) && lista.length > 0) {
             produtos.length = 0;
             produtos.push(...lista);
         }
     } catch (e) {
         console.error('Erro ao carregar produtos (mobile):', e);
-        produtos.length = 0;
     }
 }
 
@@ -82,15 +79,17 @@ function renderizarPromocoesSeguro() {
     }
 }
 
-// Executa no load (mobile safe)
-document.addEventListener('DOMContentLoaded', () => {
+// Executa no load (mobile safe) - formulários admin registrados aqui para funcionar no celular
+document.addEventListener('DOMContentLoaded', function() {
     carregarProdutosSeguro();
     carregarPromocoesSeguro();
     renderizarProdutosSeguro();
     renderizarPromocoesSeguro();
-    // Sincronização para todos: carrega do Firebase se CONFIG.firebase estiver definido
-    if (CONFIG.firebase) {
-        initFirebaseAndLoad();
+    if (typeof CONFIG !== 'undefined' && CONFIG.firebase) {
+        try { initFirebaseAndLoad(); } catch (err) {}
+    }
+    try { iniciarFormulariosAdmin(); } catch (err) {
+        console.warn('Formulários admin:', err);
     }
 });
 
@@ -2765,10 +2764,91 @@ function configurarBotoesWhatsApp() {
 // ============================================
 
 /**
+ * Executa a lógica de adicionar produto (lê o form e adiciona ao array global).
+ */
+function executarAdicionarProduto() {
+    var form = document.getElementById('formAdicionarProduto');
+    if (!form) return;
+    var nomeEl = form.querySelector('#produtoNome');
+    var precoEl = form.querySelector('#produtoPreco');
+    var descricaoEl = form.querySelector('#produtoDescricao');
+    var fileInput = form.querySelector('#produtoImagem');
+    var destaqueEl = form.querySelector('#produtoDestaque');
+    var nome = nomeEl ? nomeEl.value.trim() : '';
+    var preco = precoEl ? parseFloat(precoEl.value) : NaN;
+    var descricao = descricaoEl ? descricaoEl.value.trim() : '';
+    var destaque = destaqueEl ? destaqueEl.checked : false;
+    var elSabores = form.querySelector('#produtoSabores');
+    var elPersonalizavel = form.querySelector('#produtoPersonalizavel');
+    var sabores = elSabores ? elSabores.value.trim() : '';
+    var personalizavel = elPersonalizavel ? elPersonalizavel.checked : false;
+    if (!nome || !descricao || isNaN(preco) || preco <= 0) {
+        if (typeof mostrarMensagem === 'function') mostrarMensagem('Por favor, preencha Nome, Preço e Descrição.', 'error');
+        return;
+    }
+    var saboresArray = sabores ? sabores.split(',').map(function(s) { return s.trim(); }).filter(Boolean) : [];
+    function salvarComImagem(imagemData) {
+        produtos.push({ nome: nome, preco: preco, descricao: descricao, sabores: saboresArray, personalizavel: personalizavel, imagem: imagemData, destaque: !!destaque });
+        if (typeof salvarProdutos === 'function') salvarProdutos();
+        if (typeof renderizarProdutos === 'function') renderizarProdutos();
+        if (typeof renderizarPromocoes === 'function') renderizarPromocoes();
+        if (typeof atualizarListaProdutosAdmin === 'function') atualizarListaProdutosAdmin();
+        form.reset();
+        var preview = document.getElementById('previewNovaImagem');
+        if (preview) { preview.style.display = 'none'; var img = preview.querySelector('img'); if (img) img.src = ''; }
+        if (typeof mostrarMensagemCarrinho === 'function') mostrarMensagemCarrinho('Produto adicionado com sucesso! ✅');
+    }
+    if (fileInput && fileInput.files && fileInput.files[0]) {
+        var reader = new FileReader();
+        reader.onload = function(ev) { salvarComImagem(ev.target.result); };
+        reader.readAsDataURL(fileInput.files[0]);
+    } else {
+        salvarComImagem(null);
+    }
+}
+
+/**
+ * Executa a lógica de adicionar promoção (lê o form e adiciona ao array global).
+ */
+function executarAdicionarPromocao() {
+    var form = document.getElementById('formAdicionarPromocao');
+    if (!form) return;
+    var nomeEl = form.querySelector('#promocaoNome');
+    var badgeEl = form.querySelector('#promocaoBadge');
+    var precoOrigEl = form.querySelector('#promocaoPrecoOriginal');
+    var precoPromoEl = form.querySelector('#promocaoPrecoPromocao');
+    var emojiEl = form.querySelector('#promocaoEmoji');
+    var descricaoEl = form.querySelector('#promocaoDescricao');
+    var nome = nomeEl ? nomeEl.value.trim() : '';
+    var badge = badgeEl ? badgeEl.value.trim() || 'Destaque' : 'Destaque';
+    var precoOriginal = precoOrigEl ? parseFloat(precoOrigEl.value) : NaN;
+    var precoPromocao = precoPromoEl ? parseFloat(precoPromoEl.value) : NaN;
+    var emoji = (emojiEl && emojiEl.value.trim()) ? emojiEl.value.trim() : '🍰';
+    var descricao = descricaoEl ? descricaoEl.value.trim() : '';
+    if (!nome || !descricao || isNaN(precoOriginal) || isNaN(precoPromocao) || precoPromocao <= 0) {
+        if (typeof mostrarMensagem === 'function') mostrarMensagem('Preencha Nome, Descrição e os dois preços.', 'error');
+        return;
+    }
+    promocoes.push({ nome: nome, badge: badge, emoji: emoji, precoOriginal: precoOriginal, precoPromocao: precoPromocao, descricao: descricao });
+    if (typeof salvarPromocoes === 'function') salvarPromocoes();
+    form.reset();
+    if (typeof mostrarMensagemCarrinho === 'function') mostrarMensagemCarrinho('Promoção adicionada com sucesso! ✅');
+}
+
+/**
+ * Registra os formulários do admin (Adicionar Produto e Adicionar Promoção).
+ * Os botões usam onclick no HTML para evitar conflito com outros listeners.
+ */
+function iniciarFormulariosAdmin() {
+    /* Botões usam onclick="executarAdicionarProduto(); return false;" e onclick="executarAdicionarPromocao(); return false;" no HTML - sem addEventListener para evitar conflito */
+}
+
+/**
  * Executa quando o DOM está completamente carregado
  * Inicializa produtos e configura animações
  */
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', function() {
+    try {
     // Carrega produtos do localStorage
     carregarProdutos();
     
@@ -2942,98 +3022,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    // Formulário de adicionar produto (admin)
-    const formAdicionarProduto = document.getElementById('formAdicionarProduto');
-    if (formAdicionarProduto) {
-        formAdicionarProduto.addEventListener('submit', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            var nomeEl = formAdicionarProduto.querySelector('#produtoNome');
-            var precoEl = formAdicionarProduto.querySelector('#produtoPreco');
-            var descricaoEl = formAdicionarProduto.querySelector('#produtoDescricao');
-            var fileInput = formAdicionarProduto.querySelector('#produtoImagem');
-            var destaqueEl = formAdicionarProduto.querySelector('#produtoDestaque');
-            var nome = nomeEl ? nomeEl.value.trim() : '';
-            var preco = precoEl ? parseFloat(precoEl.value) : NaN;
-            var descricao = descricaoEl ? descricaoEl.value.trim() : '';
-            var destaque = destaqueEl ? destaqueEl.checked : false;
-            var elSabores = formAdicionarProduto.querySelector('#produtoSabores');
-            var elPersonalizavel = formAdicionarProduto.querySelector('#produtoPersonalizavel');
-            var sabores = elSabores ? elSabores.value.trim() : '';
-            var personalizavel = elPersonalizavel ? elPersonalizavel.checked : false;
-
-            if (!nome || !descricao || isNaN(preco) || preco <= 0) {
-                if (typeof mostrarMensagem === 'function') mostrarMensagem('Por favor, preencha todos os campos obrigatórios!', 'error');
-                return;
-            }
-            var saboresArray = [];
-            if (sabores) saboresArray = sabores.split(',').map(function(s) { return s.trim(); }).filter(Boolean);
-
-            var salvarComImagem = function(imagemData) {
-                produtos.push({
-                    nome: nome,
-                    preco: preco,
-                    descricao: descricao,
-                    sabores: saboresArray,
-                    personalizavel: personalizavel,
-                    imagem: imagemData,
-                    destaque: !!destaque
-                });
-                salvarProdutos();
-                renderizarProdutos();
-                renderizarPromocoes();
-                atualizarListaProdutosAdmin();
-                formAdicionarProduto.reset();
-                var preview = document.getElementById('previewNovaImagem');
-                if (preview) {
-                    preview.style.display = 'none';
-                    var img = preview.querySelector('img');
-                    if (img) img.src = '';
-                }
-                if (typeof mostrarMensagemCarrinho === 'function') mostrarMensagemCarrinho('Produto adicionado com sucesso! ✅');
-            };
-            if (fileInput && fileInput.files && fileInput.files[0]) {
-                var reader = new FileReader();
-                reader.onload = function(ev) {
-                    salvarComImagem(ev.target.result);
-                };
-                reader.readAsDataURL(fileInput.files[0]);
-            } else {
-                salvarComImagem(null);
-            }
-        });
-    }
-
-    // Formulário de adicionar promoção/destaque/destaque (admin)
-    const formAdicionarPromocao = document.getElementById('formAdicionarPromocao');
-    if (formAdicionarPromocao) {
-        formAdicionarPromocao.addEventListener('submit', function(e) {
-            e.preventDefault();
-            const nome = document.getElementById('promocaoNome').value.trim();
-            const badge = document.getElementById('promocaoBadge').value.trim() || 'Destaque';
-            const precoOriginal = parseFloat(document.getElementById('promocaoPrecoOriginal').value);
-            const precoPromocao = parseFloat(document.getElementById('promocaoPrecoPromocao').value);
-            const emoji = (document.getElementById('promocaoEmoji') && document.getElementById('promocaoEmoji').value.trim()) || '🍰';
-            const descricao = document.getElementById('promocaoDescricao').value.trim();
-
-            if (!nome || !descricao || isNaN(precoOriginal) || isNaN(precoPromocao) || precoPromocao <= 0) {
-                mostrarMensagem('Preencha todos os campos obrigatórios!', 'error');
-                return;
-            }
-
-            promocoes.push({
-                nome,
-                badge,
-                emoji,
-                precoOriginal,
-                precoPromocao,
-                descricao
-            });
-            salvarPromocoes();
-            formAdicionarPromocao.reset();
-            mostrarMensagemCarrinho('Promoção adicionada com sucesso! ✅');
-        });
-    }
+    // Formulários Adicionar Produto e Adicionar Promoção já registrados em iniciarFormulariosAdmin() (primeiro DOMContentLoaded)
     
     // Fecha modal de login admin ao clicar fora
     const modalAdminLogin = document.getElementById('modalAdminLogin');
@@ -3051,6 +3040,9 @@ document.addEventListener('DOMContentLoaded', () => {
             fecharModalAdminLogin();
         }
     });
+    } catch (err) {
+        console.warn('Inicialização:', err);
+    }
 });
 
 // ============================================
@@ -3082,6 +3074,8 @@ window.mostrarTabAdmin = mostrarTabAdmin;
 window.editarProduto = editarProduto;
 window.excluirProduto = excluirProduto;
 window.fecharModalEditar = fecharModalEditar;
+window.executarAdicionarProduto = executarAdicionarProduto;
+window.executarAdicionarPromocao = executarAdicionarPromocao;
 window.editarPromocao = editarPromocao;
 window.excluirPromocao = excluirPromocao;
 window.fecharModalEditarPromocao = fecharModalEditarPromocao;

@@ -392,7 +392,7 @@
             <div id="tabProdutos" class="painel-tab-content active">
                 <div class="admin-section">
                     <h3>Adicionar Novo Produto</h3>
-                    <form id="formAdicionarProduto" class="form-admin">
+                    <form id="formAdicionarProduto" class="form-admin" onsubmit="executarAdicionarProduto(); return false;">
                         <div class="form-row-admin">
                             <div class="form-group">
                                 <label for="produtoNome">Nome do Produto *</label>
@@ -420,7 +420,7 @@
                                 <button type="button" onclick="removerPreview('previewNovaImagem', 'produtoImagem')" style="margin-top: 10px; padding: 5px 15px; background: #E53935; color: white; border: none; border-radius: 5px; cursor: pointer;">Remover Imagem</button>
                             </div>
                         </div>
-                        <button type="submit" class="btn-admin">➕ Adicionar Produto</button>
+                        <button type="button" id="btnAdicionarProduto" class="btn-admin" onclick="executarAdicionarProduto(); return false;">➕ Adicionar Produto</button>
                     </form>
                 </div>
                 
@@ -436,7 +436,7 @@
             <div id="tabPromocoes" class="painel-tab-content">
                 <div class="admin-section">
                     <h3>Adicionar Promoção ou Destaque</h3>
-                    <form id="formAdicionarPromocao" class="form-admin">
+                    <form id="formAdicionarPromocao" class="form-admin" onsubmit="executarAdicionarPromocao(); return false;">
                         <div class="form-row-admin">
                             <div class="form-group">
                                 <label for="promocaoNome">Nome *</label>
@@ -465,7 +465,7 @@
                             <label for="promocaoDescricao">Descrição *</label>
                             <textarea id="promocaoDescricao" rows="3" required></textarea>
                         </div>
-                        <button type="submit" class="btn-admin">➕ Adicionar Promoção</button>
+                        <button type="button" id="btnAdicionarPromocao" class="btn-admin" onclick="executarAdicionarPromocao(); return false;">➕ Adicionar Promoção</button>
                     </form>
                 </div>
                 <div class="admin-section">
@@ -492,5 +492,35 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
     <script src="script.js"></script>
+    <script type="module">
+
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        
+        const firebaseConfig = {
+          apiKey: "SEU_API_KEY",
+          authDomain: "SEU_AUTH_DOMAIN",
+          projectId: "SEU_PROJECT_ID",
+          storageBucket: "SEU_STORAGE",
+          messagingSenderId: "SEU_SENDER",
+          appId: "SEU_APP_ID"
+        };
+        
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        
+        console.log("🔥 Firebase conectado");
+        
+        async function carregarProdutos() {
+          const querySnapshot = await getDocs(collection(db, "produtos"));
+          querySnapshot.forEach((doc) => {
+            console.log(doc.data());
+          });
+        }
+        
+        carregarProdutos();
+        
+        </script>
+        
 </body>
 </html>

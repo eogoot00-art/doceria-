@@ -102,6 +102,10 @@
 /* ============================================
    CORPO PRINCIPAL
    ============================================ */
+html {
+    min-height: 100%;
+    -webkit-text-size-adjust: 100%;
+}
 body {
     font-family: 'Poppins', sans-serif;
     color: var(--dark);
@@ -110,12 +114,39 @@ body {
     overflow-x: hidden;
     line-height: 1.7;
     scroll-behavior: smooth;
-    /* Melhorias de performance */
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
-    /* Melhorias de acessibilidade */
     min-height: 100vh;
+    min-height: -webkit-fill-available;
+}
+/* Mobile: evita tela branca e melhora scroll */
+@media (max-width: 768px) {
+    html, body {
+        min-height: 100vh;
+        min-height: 100dvh;
+        background-attachment: scroll;
+    }
+    body {
+        -webkit-overflow-scrolling: touch;
+    }
+    .painel-admin-content {
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        max-height: calc(100vh - 120px);
+        padding-bottom: 30px;
+    }
+    .btn-admin {
+        min-height: 48px;
+        min-width: 44px;
+        padding: 14px 20px;
+        font-size: 1rem;
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+    }
+    .form-admin button[type="submit"] {
+        min-height: 48px;
+    }
 }
 
 /* Foco visível para navegação por teclado */
